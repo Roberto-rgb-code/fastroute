@@ -1,0 +1,77 @@
+.form-row {
+  display: flex;
+  gap: 0.6rem;
+  margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+  .input {
+    flex: 1 1 160px;
+  }
+}
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+}
+.entity-card {
+  padding: 1.1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+.entity-top {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: var(--brand-50);
+  color: var(--brand-600);
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+.entity-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  strong {
+    font-size: 0.95rem;
+  }
+  span {
+    font-size: 0.8rem;
+  }
+}
+.icon-del {
+  border: 0;
+  background: transparent;
+  color: var(--ink-400);
+  cursor: pointer;
+  padding: 0.35rem;
+  border-radius: 8px;
+  &:hover {
+    background: var(--danger-bg);
+    color: var(--danger);
+  }
+}
+.entity-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.82rem;
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid var(--ink-100);
+}
+.entity-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.select-sm {
+  padding: 0.35rem 0.5rem;
+  font-size: 0.8rem;
+}

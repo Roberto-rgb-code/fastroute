@@ -1,0 +1,41 @@
+<app-page-header title="Vehículos" subtitle="Unidades de tu flota">
+  <button class="btn btn-primary" (click)="showForm.set(!showForm())">
+    <app-icon name="plus" [size]="18" /> Nuevo vehículo
+  </button>
+</app-page-header>
+
+@if (showForm()) {
+  <div class="card card-pad form-row">
+    <input class="input" [(ngModel)]="plate" placeholder="Placa" />
+    <input class="input" [(ngModel)]="name" placeholder="Nombre / modelo" />
+    <input class="input" type="number" [(ngModel)]="capacity" placeholder="Capacidad" />
+    <button class="btn btn-primary" (click)="create()">Guardar</button>
+  </div>
+}
+
+<div class="cards-grid">
+  @for (v of items(); track v.id) {
+    <div class="card entity-card">
+      <div class="entity-top">
+        <div class="avatar"><app-icon name="vehicle" [size]="22" /></div>
+        <div class="entity-info">
+          <strong>{{ v.plate }}</strong>
+          <span class="muted">{{ v.name || 'Sin nombre' }}</span>
+        </div>
+        <button class="icon-del" (click)="remove(v)"><app-icon name="trash" [size]="16" /></button>
+      </div>
+      <div class="entity-meta">
+        <span class="muted">Cap: {{ v.capacity || '—' }}</span>
+        <span class="muted">{{ v._count?.routes || 0 }} rutas</span>
+      </div>
+      <div class="entity-foot">
+        <span [class]="'badge badge-' + VEHICLE_BADGE[v.status]">{{ VEHICLE_LABEL[v.status] }}</span>
+        <select class="select select-sm" [ngModel]="v.status" (ngModelChange)="setStatus(v, $event)">
+          @for (s of statuses; track s) {
+            <option [value]="s">{{ VEHICLE_LABEL[s] }}</option>
+          }
+        </select>
+      </div>
+    </div>
+  }
+</div>

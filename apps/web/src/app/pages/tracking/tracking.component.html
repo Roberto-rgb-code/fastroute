@@ -1,0 +1,40 @@
+<app-page-header title="Seguimiento" subtitle="Ubicación de tus rutas activas en tiempo real">
+  @if (live()) {
+    <span class="badge badge-ok live">En vivo</span>
+  } @else {
+    <span class="badge badge-muted">Sin señal en vivo</span>
+  }
+</app-page-header>
+
+<div class="track-layout">
+  <div class="card map-card">
+    @if (useMapbox()) {
+      <div #mapEl class="mapbox"></div>
+    } @else {
+      <app-map-placeholder [stops]="placeholderStops" />
+    }
+  </div>
+
+  <div class="card side">
+    <div class="card-head"><h3>Rutas activas ({{ active().length }})</h3></div>
+    @if (active().length === 0) {
+      <p class="empty muted">No hay rutas activas ahora.</p>
+    } @else {
+      <ul class="list">
+        @for (r of active(); track r.id) {
+          <li>
+            <div class="dot"><app-icon name="vehicle" [size]="16" /></div>
+            <div class="info">
+              <strong>{{ r.name }}</strong>
+              <span class="muted">{{ r.driver?.name || 'Sin conductor' }}</span>
+            </div>
+            <span [class]="'badge badge-' + ROUTE_BADGE[r.status]">{{ ROUTE_LABEL[r.status] }}</span>
+          </li>
+        }
+      </ul>
+    }
+    <p class="hint muted">
+      El seguimiento en vivo usa Pusher. Configura <code>PUSHER_KEY</code> y publica posiciones desde la app móvil.
+    </p>
+  </div>
+</div>

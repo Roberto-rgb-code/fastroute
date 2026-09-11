@@ -1,0 +1,97 @@
+<div class="topbar">
+  <div class="brand">
+    <div class="logo">FR</div>
+    <div>
+      <strong>FastRoute</strong>
+      <span>Super Admin</span>
+    </div>
+  </div>
+  <div class="top-actions">
+    <button class="btn btn-ghost" (click)="goApp()">Ir al panel</button>
+    <button class="btn btn-ghost" (click)="logout()"><app-icon name="logout" [size]="16" /> Salir</button>
+  </div>
+</div>
+
+<div class="wrap">
+  <header class="hdr">
+    <div>
+      <h1 class="title-xl">Clientes (tenants)</h1>
+      <p class="muted">Da de alta empresas y sus usuarios</p>
+    </div>
+  </header>
+
+  <div class="grid">
+    <div class="card card-pad create-card">
+      <h3>Nueva empresa</h3>
+      <label class="field">
+        Nombre
+        <input class="input" [(ngModel)]="name" (ngModelChange)="slugify()" placeholder="Acme Logística" />
+      </label>
+      <label class="field">
+        Slug
+        <input class="input" [(ngModel)]="slug" placeholder="acme-logistica" />
+      </label>
+      <button class="btn btn-primary" (click)="create()"><app-icon name="plus" [size]="16" /> Crear empresa</button>
+      @if (message()) { <p class="msg">{{ message() }}</p> }
+    </div>
+
+    <div class="card list-card">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Empresa</th>
+            <th>Slug</th>
+            <th>Usuarios</th>
+            <th>Estado</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (e of rows(); track e.id) {
+            <tr>
+              <td><strong>{{ e.name }}</strong></td>
+              <td><code>{{ e.slug }}</code></td>
+              <td>{{ e._count?.users || 0 }}</td>
+              <td>
+                <span class="badge" [class.badge-ok]="e.isActive" [class.badge-danger]="!e.isActive">
+                  {{ e.isActive ? 'Activa' : 'Inactiva' }}
+                </span>
+              </td>
+              <td class="row-actions">
+                <button class="btn btn-ghost btn-sm" (click)="openUser(e)">+ Usuario</button>
+                <button class="btn btn-ghost btn-sm" (click)="toggleActive(e)">
+                  {{ e.isActive ? 'Desactivar' : 'Activar' }}
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+@if (activeEnt(); as e) {
+  <div class="modal-backdrop" (click)="activeEnt.set(null)">
+    <div class="modal card" (click)="$event.stopPropagation()">
+      <h3>Nuevo usuario · {{ e.name }}</h3>
+      <label class="field">Nombre<input class="input" [(ngModel)]="uName" /></label>
+      <label class="field">Email<input class="input" type="email" [(ngModel)]="uEmail" /></label>
+      <label class="field">Contraseña<input class="input" type="text" [(ngModel)]="uPassword" placeholder="mín. 8 caracteres" /></label>
+      <label class="field">
+        Rol
+        <select class="select" [(ngModel)]="uRole">
+          <option value="ADMIN">Admin</option>
+          <option value="MANAGER">Manager</option>
+          <option value="LOGISTICS">Logística</option>
+          <option value="DRIVER">Conductor</option>
+        </select>
+      </label>
+      @if (userMsg()) { <p class="msg">{{ userMsg() }}</p> }
+      <div class="modal-actions">
+        <button class="btn btn-ghost" (click)="activeEnt.set(null)">Cerrar</button>
+        <button class="btn btn-primary" (click)="createUser()">Crear usuario</button>
+      </div>
+    </div>
+  </div>
+}

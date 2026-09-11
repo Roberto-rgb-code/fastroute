@@ -1,0 +1,79 @@
+<app-page-header title="Dashboard" subtitle="Resumen operativo de hoy">
+  <a class="btn btn-primary" routerLink="/app/routes/new">
+    <app-icon name="plus" [size]="18" /> Nueva ruta
+  </a>
+</app-page-header>
+
+<section class="kpis">
+  <div class="kpi card">
+    <div class="kpi-icon k-info"><app-icon name="clock" [size]="22" /></div>
+    <div>
+      <span class="kpi-label">En ruta</span>
+      <strong class="kpi-value">{{ kpis()?.enroute ?? '—' }}</strong>
+    </div>
+  </div>
+  <div class="kpi card">
+    <div class="kpi-icon k-muted"><app-icon name="route" [size]="22" /></div>
+    <div>
+      <span class="kpi-label">Pendientes</span>
+      <strong class="kpi-value">{{ kpis()?.pending ?? '—' }}</strong>
+    </div>
+  </div>
+  <div class="kpi card">
+    <div class="kpi-icon k-ok"><app-icon name="check" [size]="22" /></div>
+    <div>
+      <span class="kpi-label">Completadas</span>
+      <strong class="kpi-value">{{ kpis()?.completed ?? '—' }}</strong>
+    </div>
+  </div>
+  <div class="kpi card">
+    <div class="kpi-icon k-brand"><app-icon name="package" [size]="22" /></div>
+    <div>
+      <span class="kpi-label">Entregas</span>
+      <strong class="kpi-value">{{ kpis()?.stopsDelivered ?? 0 }}/{{ kpis()?.stopsTotal ?? 0 }}</strong>
+    </div>
+  </div>
+</section>
+
+<section class="grid">
+  <div class="card card-pad rate-card">
+    <h3>Tasa de entrega</h3>
+    <div class="ring" [style.--val]="deliveryRate">
+      <span>{{ deliveryRate }}%</span>
+    </div>
+    <p class="muted">{{ kpis()?.stopsDelivered ?? 0 }} de {{ kpis()?.stopsTotal ?? 0 }} paradas completadas</p>
+    <div class="fleet">
+      <div><app-icon name="driver" [size]="18" /> {{ kpis()?.drivers ?? 0 }} conductores</div>
+      <div><app-icon name="vehicle" [size]="18" /> {{ kpis()?.vehicles ?? 0 }} vehículos</div>
+    </div>
+  </div>
+
+  <div class="card active-card">
+    <div class="card-head">
+      <h3>Rutas activas</h3>
+      <a routerLink="/app/routes" class="link-sm">Ver todas</a>
+    </div>
+    @if (loading()) {
+      <p class="empty muted">Cargando…</p>
+    } @else if (active().length === 0) {
+      <p class="empty muted">No hay rutas activas.</p>
+    } @else {
+      <ul class="route-list">
+        @for (r of active(); track r.id) {
+          <li>
+            <a [routerLink]="['/app/routes', r.id]" class="route-item">
+              <div class="route-main">
+                <strong>{{ r.name }}</strong>
+                <span class="muted">{{ r.driver?.name || 'Sin conductor' }} · {{ r.vehicle?.plate || '—' }}</span>
+              </div>
+              <div class="route-side">
+                <span [class]="'badge badge-' + ROUTE_BADGE[r.status]">{{ ROUTE_LABEL[r.status] }}</span>
+                <div class="bar"><i [style.width.%]="progress(r)"></i></div>
+              </div>
+            </a>
+          </li>
+        }
+      </ul>
+    }
+  </div>
+</section>

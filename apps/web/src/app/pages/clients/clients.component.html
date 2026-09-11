@@ -1,0 +1,37 @@
+<app-page-header title="Clientes" subtitle="Contratos y checklist por cliente">
+  <button class="btn btn-primary" (click)="showForm.set(!showForm())">
+    <app-icon name="plus" [size]="18" /> Nuevo cliente
+  </button>
+</app-page-header>
+
+@if (showForm()) {
+  <div class="card card-pad form-row">
+    <input class="input" [(ngModel)]="name" placeholder="Nombre del cliente" />
+    <input class="input" [(ngModel)]="contactName" placeholder="Contacto" />
+    <input class="input" [(ngModel)]="contactPhone" placeholder="Teléfono" />
+    <button class="btn btn-primary" (click)="create()">Guardar</button>
+  </div>
+}
+
+<div class="cards-grid">
+  @for (c of items(); track c.id) {
+    <div class="card entity-card">
+      <div class="entity-top">
+        <div class="avatar"><app-icon name="client" [size]="22" /></div>
+        <div class="entity-info">
+          <strong>{{ c.name }}</strong>
+          <span class="muted">{{ c.contactName || 'Sin contacto' }}</span>
+        </div>
+        <button class="icon-del" (click)="remove(c)"><app-icon name="trash" [size]="16" /></button>
+      </div>
+      <div class="entity-meta">
+        <span class="muted"><app-icon name="pin" [size]="14" /> {{ c._count?.stops || 0 }} paradas</span>
+        <span class="muted"><app-icon name="check" [size]="14" /> {{ c._count?.checklistItems || 0 }} checklist</span>
+      </div>
+      <div class="entity-foot">
+        <span class="muted">Entrega: {{ c.deliverMinutes }} min</span>
+        <span class="muted">{{ c.contactPhone || '' }}</span>
+      </div>
+    </div>
+  }
+</div>

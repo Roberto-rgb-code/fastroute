@@ -1,0 +1,26 @@
+# syntax=docker/dockerfile:1
+FROM node:20-bookworm-slim
+
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends openssl ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+COPY apps/api/package.json ./apps/api/
+COPY apps/web/package.json ./apps/web/
+COPY apps/mobile/package.json ./apps/mobile/
+
+RUN npm ci --ignore-scripts
+
+COPY apps/api ./apps/api
+
+WORKDIR /app/apps/api
+RUN npx prisma generate
+
+ENV NODE_ENV=development
+ENV API_PORT=3000
+EXPOSE 3000
+
+CMD ["npm", "run", "start:dev"]

@@ -1,0 +1,24 @@
+{
+  "name": "fastroute",
+  "private": true,
+  "workspaces": [
+    "apps/api",
+    "apps/web"
+  ],
+  "scripts": {
+    "dev:infra": "docker compose up -d postgres redis",
+    "dev:up": "docker compose up -d --build",
+    "dev:down": "docker compose down",
+    "dev:api": "npm run start:dev -w @fastroute/api",
+    "dev:web": "npm run start -w @fastroute/web",
+    "dev:mobile": "npm run start -w @fastroute/mobile",
+    "dev:android": "bash scripts/dev-mobile-android.sh",
+    "dev:android:watchdog": "bash scripts/android-emulator.sh watchdog",
+    "db:migrate": "npm run prisma:migrate -w @fastroute/api",
+    "db:seed": "npm run prisma:seed -w @fastroute/api",
+    "db:studio": "npm run prisma:studio -w @fastroute/api"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

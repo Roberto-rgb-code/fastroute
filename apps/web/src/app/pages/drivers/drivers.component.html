@@ -1,0 +1,41 @@
+<app-page-header title="Conductores" subtitle="Operadores de tu flota">
+  <button class="btn btn-primary" (click)="showForm.set(!showForm())">
+    <app-icon name="plus" [size]="18" /> Nuevo conductor
+  </button>
+</app-page-header>
+
+@if (showForm()) {
+  <div class="card card-pad form-row">
+    <input class="input" [(ngModel)]="name" placeholder="Nombre completo" />
+    <input class="input" [(ngModel)]="phone" placeholder="Teléfono" />
+    <input class="input" [(ngModel)]="licenseId" placeholder="Licencia" />
+    <button class="btn btn-primary" (click)="create()">Guardar</button>
+  </div>
+}
+
+<div class="cards-grid">
+  @for (d of items(); track d.id) {
+    <div class="card entity-card">
+      <div class="entity-top">
+        <div class="avatar">{{ d.name.charAt(0) }}</div>
+        <div class="entity-info">
+          <strong>{{ d.name }}</strong>
+          <span class="muted">{{ d.phone || 'Sin teléfono' }}</span>
+        </div>
+        <button class="icon-del" (click)="remove(d)"><app-icon name="trash" [size]="16" /></button>
+      </div>
+      <div class="entity-meta">
+        <span class="muted">Licencia: {{ d.licenseId || '—' }}</span>
+        <span class="muted">{{ d._count?.routes || 0 }} rutas</span>
+      </div>
+      <div class="entity-foot">
+        <span [class]="'badge badge-' + DRIVER_BADGE[d.status]">{{ DRIVER_LABEL[d.status] }}</span>
+        <select class="select select-sm" [ngModel]="d.status" (ngModelChange)="setStatus(d, $event)">
+          @for (s of statuses; track s) {
+            <option [value]="s">{{ DRIVER_LABEL[s] }}</option>
+          }
+        </select>
+      </div>
+    </div>
+  }
+</div>

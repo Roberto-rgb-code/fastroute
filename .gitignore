@@ -1,0 +1,40 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build
+dist/
+.angular/
+coverage/
+
+# Env & secrets — never commit
+.env
+.env.*
+!.env.example
+*.pem
+*.json
+!package.json
+!tsconfig*.json
+!angular.json
+!nest-cli.json
+service-account*.json
+terraform.tfvars
+terraform.tfstate
+terraform.tfstate.*
+.terraform/
+*.tfvars
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+
+# Uploads (local demo)
+uploads/
+
+# Expo
+apps/mobile/.expo/
+apps/mobile/dist/

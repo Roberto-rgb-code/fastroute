@@ -1,0 +1,82 @@
+@if (loading()) {
+  <p class="muted">Cargando ruta…</p>
+}
+@if (!loading() && data(); as r) {
+  <div class="head">
+    <div>
+      <a routerLink="/app/routes" class="back">← Rutas</a>
+      <h1 class="title-xl">{{ r.name }}</h1>
+      <div class="meta">
+        <span [class]="'badge badge-' + ROUTE_BADGE[r.status]">{{ ROUTE_LABEL[r.status] }}</span>
+        <span class="muted">{{ r.driver?.name || 'Sin conductor' }} · {{ r.vehicle?.plate || 'Sin vehículo' }}</span>
+      </div>
+    </div>
+    <div class="actions">
+      @for (a of nextActions(); track a.status) {
+        <button class="btn {{ a.kind }}" (click)="changeStatus(a.status)">{{ a.label }}</button>
+      }
+      <button class="btn btn-danger" (click)="remove()"><app-icon name="trash" [size]="16" /></button>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><span>Progreso</span><strong>{{ progress() }}%</strong></div>
+    <div class="stat"><span>Paradas</span><strong>{{ r.events.length }}</strong></div>
+    <div class="stat"><span>Distancia</span><strong>{{ km(r.totalDistance) }}</strong></div>
+    <div class="stat"><span>Duración</span><strong>{{ dur(r.totalDuration) }}</strong></div>
+  </div>
+
+  <div class="layout">
+    <div class="left">
+      <div class="card map-card">
+        @if (useMapbox()) {
+          <div #mapEl class="mapbox"></div>
+        } @else {
+          <app-map-placeholder [stops]="stopsForMap" />
+        }
+      </div>
+
+      @if (r.checklist.length) {
+        <div class="card card-pad">
+          <h3>Checklist pre-ruta</h3>
+          <ul class="checklist">
+            @for (c of r.checklist; track c.id) {
+              <li>
+                <span class="chk" [class.done]="c.done">
+                  @if (c.done) { <app-icon name="check" [size]="14" /> }
+                </span>
+                <span class="chk-label">{{ c.label }}</span>
+                @if (c.required) { <span class="badge badge-warn">Obligatorio</span> }
+              </li>
+            }
+          </ul>
+        </div>
+      }
+    </div>
+
+    <div class="card stops-card">
+      <div class="card-head"><h3>Paradas</h3></div>
+      <ol class="stops">
+        @for (e of r.events; track e.id) {
+          <li>
+            <div class="pos" [class.done]="e.status === 'COMPLETED'">
+              @if (e.status === 'COMPLETED') { <app-icon name="check" [size]="14" /> } @else { {{ e.position }} }
+            </div>
+            <div class="stop-info">
+              <strong>{{ e.stop.label }}</strong>
+              <span class="muted">{{ e.stop.address }}</span>
+            </div>
+            <div class="stop-tags">
+              @if (e.priority === 'URGENT') { <span class="badge badge-danger">Urgente</span> }
+              @if (e.status === 'COMPLETED') {
+                <span class="badge badge-ok">Entregada</span>
+              } @else {
+                <span class="badge badge-muted">Pendiente</span>
+              }
+            </div>
+          </li>
+        }
+      </ol>
+    </div>
+  </div>
+}

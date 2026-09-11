@@ -1,0 +1,59 @@
+<main class="login">
+  <div class="login-visual">
+    <div class="visual-inner">
+      <div class="logo-lg">FR</div>
+      <h2>Logística de última milla, potenciada.</h2>
+      <p>Planifica rutas, asigna flota y sigue tus entregas en tiempo real. Todo en una plataforma.</p>
+      <ul>
+        <li><span>✓</span> Optimización de rutas multi-parada</li>
+        <li><span>✓</span> Seguimiento en vivo de conductores</li>
+        <li><span>✓</span> Evidencias, firma y checklist en campo</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="login-form">
+    <div class="card card-pad form-card">
+      <h1>Bienvenido</h1>
+      <p class="muted">Ingresa a tu panel FastRoute</p>
+
+      <form (ngSubmit)="submit()">
+        <label class="field">
+          Email
+          <input
+            class="input"
+            type="email"
+            name="email"
+            [(ngModel)]="email"
+            required
+            autocomplete="username"
+          />
+        </label>
+        <label class="field">
+          Contraseña
+          <input
+            class="input"
+            type="password"
+            name="password"
+            [(ngModel)]="password"
+            required
+            autocomplete="current-password"
+          />
+        </label>
+        @if (error()) {
+          <p class="err">{{ error() }}</p>
+        }
+        <button class="btn btn-primary btn-block" type="submit" [disabled]="loading()">
+          {{ loading() ? 'Entrando…' : 'Entrar' }}
+        </button>
+      </form>
+
+      <div class="demo">
+        <strong>Cuentas demo</strong>
+        <button type="button" (click)="fill('super')">Super Admin</button>
+        <button type="button" (click)="fill('admin')">Admin</button>
+        <button type="button" (click)="fill('driver')">Conductor</button>
+      </div>
+    </div>
+  </div>
+</main>

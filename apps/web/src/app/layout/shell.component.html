@@ -1,0 +1,41 @@
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="logo">FR</div>
+      <div class="brand-text">
+        <strong>FastRoute</strong>
+        <span>{{ auth.user()?.enterpriseName || 'Logística' }}</span>
+      </div>
+    </div>
+
+    <nav>
+      @for (item of nav; track item.path) {
+        <a [routerLink]="item.path" routerLinkActive="active">
+          <app-icon [name]="item.icon" [size]="20" />
+          <span>{{ item.label }}</span>
+        </a>
+      }
+      @if (auth.isSuper()) {
+        <a routerLink="/super/enterprises" routerLinkActive="active" class="super-link">
+          <app-icon name="building" [size]="20" />
+          <span>Super Admin</span>
+        </a>
+      }
+    </nav>
+
+    <div class="user">
+      <div class="avatar">{{ initials }}</div>
+      <div class="user-info">
+        <strong>{{ auth.user()?.name }}</strong>
+        <span>{{ auth.user()?.role }}</span>
+      </div>
+      <button class="icon-btn" (click)="logout()" title="Salir">
+        <app-icon name="logout" [size]="18" />
+      </button>
+    </div>
+  </aside>
+
+  <main class="content">
+    <router-outlet />
+  </main>
+</div>

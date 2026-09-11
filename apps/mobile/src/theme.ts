@@ -1,0 +1,32 @@
+export const theme = {
+  brand: '#4f46e5',
+  brandDark: '#4338ca',
+  brand50: '#eef2ff',
+  ink900: '#0f172a',
+  ink700: '#334155',
+  ink500: '#64748b',
+  ink400: '#94a3b8',
+  ink200: '#e2e8f0',
+  ink100: '#f1f5f9',
+  ink50: '#f8fafc',
+  ok: '#059669',
+  okBg: '#d1fae5',
+  warn: '#d97706',
+  warnBg: '#fef3c7',
+  danger: '#dc2626',
+  dangerBg: '#fee2e2',
+  info: '#2563eb',
+  infoBg: '#dbeafe',
+  radius: 14,
+};
+
+export const statusColor: Record<string, { fg: string; bg: string; label: string }> = {
+  PENDING: { fg: theme.ink500, bg: theme.ink100, label: 'Pendiente' },
+  CHECKLIST: { fg: theme.info, bg: theme.infoBg, label: 'Checklist' },
+  CHECKLIST_PENDING: { fg: theme.warn, bg: theme.warnBg, label: 'Checklist pend.' },
+  ENROUTE: { fg: theme.info, bg: theme.infoBg, label: 'En ruta' },
+  PAUSED: { fg: theme.warn, bg: theme.warnBg, label: 'Pausada' },
+  COMPLETED: { fg: theme.ok, bg: theme.okBg, label: 'Completada' },
+  FINISHED: { fg: theme.ok, bg: theme.okBg, label: 'Finalizada' },
+  CANCELLED: { fg: theme.danger, bg: theme.dangerBg, label: 'Cancelada' },
+};

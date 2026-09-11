@@ -1,0 +1,83 @@
+<a routerLink="/app/routes" class="back">← Rutas</a>
+<h1 class="title-xl">Nueva ruta</h1>
+
+<div class="steps">
+  <div class="stp" [class.active]="step() >= 1" [class.done]="step() > 1"><span>1</span> Datos</div>
+  <div class="line"></div>
+  <div class="stp" [class.active]="step() >= 2" [class.done]="step() > 2"><span>2</span> Asignación</div>
+  <div class="line"></div>
+  <div class="stp" [class.active]="step() >= 3"><span>3</span> Paradas</div>
+</div>
+
+<div class="card card-pad wizard">
+  @if (step() === 1) {
+    <label class="field">
+      Nombre de la ruta
+      <input class="input" [(ngModel)]="name" placeholder="Ej. Ruta Norte · Mañana" />
+    </label>
+    <label class="field">
+      Cliente (opcional — instancia checklist)
+      <select class="select" [(ngModel)]="clientId">
+        <option value="">Sin cliente</option>
+        @for (c of clients(); track c.id) {
+          <option [value]="c.id">{{ c.name }}</option>
+        }
+      </select>
+    </label>
+  }
+
+  @if (step() === 2) {
+    <div class="two">
+      <label class="field">
+        Conductor
+        <select class="select" [(ngModel)]="driverId">
+          <option value="">Sin asignar</option>
+          @for (d of availableDrivers(); track d.id) {
+            <option [value]="d.id">{{ d.name }}</option>
+          }
+        </select>
+      </label>
+      <label class="field">
+        Vehículo
+        <select class="select" [(ngModel)]="vehicleId">
+          <option value="">Sin asignar</option>
+          @for (v of availableVehicles(); track v.id) {
+            <option [value]="v.id">{{ v.plate }} {{ v.name ? '· ' + v.name : '' }}</option>
+          }
+        </select>
+      </label>
+    </div>
+    <p class="muted hint">Solo se muestran conductores y vehículos disponibles.</p>
+  }
+
+  @if (step() === 3) {
+    <p class="muted">Selecciona las paradas en el orden de visita ({{ selected().length }} elegidas)</p>
+    <div class="stops-grid">
+      @for (s of stops(); track s.id) {
+        <button type="button" class="stop-chip" [class.on]="isSelected(s.id)" (click)="toggleStop(s.id)">
+          @if (isSelected(s.id)) { <span class="ord">{{ orderOf(s.id) }}</span> }
+          <div>
+            <strong>{{ s.label }}</strong>
+            <span>{{ s.address }}</span>
+          </div>
+        </button>
+      }
+    </div>
+  }
+
+  @if (error()) { <p class="err">{{ error() }}</p> }
+
+  <div class="wizard-actions">
+    @if (step() > 1) {
+      <button class="btn btn-ghost" (click)="back()">Atrás</button>
+    }
+    <span class="grow"></span>
+    @if (step() < 3) {
+      <button class="btn btn-primary" (click)="next()">Continuar</button>
+    } @else {
+      <button class="btn btn-primary" (click)="save()" [disabled]="saving()">
+        {{ saving() ? 'Creando…' : 'Crear ruta' }}
+      </button>
+    }
+  </div>
+</div>

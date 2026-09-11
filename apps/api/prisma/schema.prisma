@@ -1,0 +1,286 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x", "linux-arm64-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  SUPER
+  ADMIN
+  MANAGER
+  LOGISTICS
+  DRIVER
+  EXTERNAL
+}
+
+enum DriverStatus {
+  AVAILABLE
+  ENROUTE
+  WORKSHOP
+  NODOCS
+  PAUSED
+}
+
+enum VehicleStatus {
+  AVAILABLE
+  ENROUTE
+  WORKSHOP
+  PAUSED
+}
+
+enum RouteStatus {
+  PENDING
+  CHECKLIST
+  CHECKLIST_PENDING
+  ENROUTE
+  PAUSED
+  COMPLETED
+  FINISHED
+  CANCELLED
+}
+
+enum EventStatus {
+  PENDING
+  ROUTE
+  ISSUE
+  SERVICE
+  COMPLETED
+}
+
+enum DeliverStatus {
+  PENDING
+  DELIVERED
+  PARTIAL
+  NOTDELIVERED
+}
+
+enum PriorityStatus {
+  URGENT
+  NORMAL
+  NOTURGENT
+}
+
+model Enterprise {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  isActive  Boolean  @default(true)
+  settings  Json     @default("{}")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users     User[]
+  drivers   Driver[]
+  vehicles  Vehicle[]
+  clients   Client[]
+  stops     Stop[]
+  templates RouteTemplate[]
+  routes    Route[]
+
+  @@map("enterprise")
+}
+
+model User {
+  id           String      @id @default(cuid())
+  email        String      @unique
+  passwordHash String
+  name         String
+  role         UserRole
+  enterpriseId String?
+  enterprise   Enterprise? @relation(fields: [enterpriseId], references: [id], onDelete: Cascade)
+  isActive     Boolean     @default(true)
+  driver       Driver?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@index([enterpriseId])
+  @@map("user")
+}
+
+model Driver {
+  id           String       @id @default(cuid())
+  name         String
+  phone        String?
+  licenseId    String?
+  photoUrl     String?
+  status       DriverStatus @default(AVAILABLE)
+  enterpriseId String
+  enterprise   Enterprise   @relation(fields: [enterpriseId], references: [id], onDelete: Cascade)
+  userId       String?      @unique
+  user         User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  routes       Route[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@index([enterpriseId])
+  @@map("driver")
+}
+
+model Vehicle {
+  id           String        @id @default(cuid())
+  plate        String
+  name         String?
+  capacity     Int?
+  insurance    String?
+  status       VehicleStatus @default(AVAILABLE)
+  enterpriseId String
+  enterprise   Enterprise    @relation(fields: [enterpriseId], references: [id], onDelete: Cascade)
+  routes       Route[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([enterpriseId])
+  @@map("vehicle")
+}
+
+model Client {
+  id             String          @id @default(cuid())
+  name           String
+  contactName    String?
+  contactPhone   String?
+  pickupMinutes  Int             @default(0)
+  deliverMinutes Int             @default(10)
+  enterpriseId   String
+  enterprise     Enterprise      @relation(fields: [enterpriseId], references: [id], onDelete: Cascade)
+  stops          Stop[]
+  checklistItems ChecklistItem[]
+  routes         Route[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([enterpriseId])
+  @@map("client")
+}
+
+model Stop {
+  id           String     @id @default(cuid())
+  label        String
+  address      String
+  lat          Float
+  lng          Float
+  reference    String?
+  enterpriseId String
+  enterprise   Enterprise @relation(fields: [enterpriseId], references: [id], onDelete: Cascade)
+  clientId     String?
+  client       Client?    @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  events       Event[]
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([enterpriseId])
+  @@index([clientId])
+  @@map("stop")
+}
+
+model ChecklistItem {
+  id         String  @id @default(cuid())
+  label      String
+  required   Boolean @default(false)
+  photo      Boolean @default(false)
+  position   Int     @default(0)
+  clientId   String
+  client     Client  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+  @@map("checklist_item")
+}
+
+model RouteTemplate {
+  id            String     @id @default(cuid())
+  name          String
+  polyline      String?
+  totalDistance Float?
+  totalDuration Int?
+  enterpriseId  String
+  enterprise    Enterprise @relation(fields: [enterpriseId], references: [id], onDelete: Cascade)
+  routes        Route[]
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@index([enterpriseId])
+  @@map("route_template")
+}
+
+model Route {
+  id            String         @id @default(cuid())
+  name          String
+  status        RouteStatus    @default(PENDING)
+  dateStart     DateTime       @default(now())
+  dateStarted   DateTime?
+  dateEnd       DateTime?
+  polyline      String?
+  totalDistance Float?
+  totalDuration Int?
+  enterpriseId  String
+  enterprise    Enterprise     @relation(fields: [enterpriseId], references: [id], onDelete: Cascade)
+  driverId      String?
+  driver        Driver?        @relation(fields: [driverId], references: [id], onDelete: SetNull)
+  vehicleId     String?
+  vehicle       Vehicle?       @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  clientId      String?
+  client        Client?        @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  templateId    String?
+  template      RouteTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  events        Event[]
+  checklist     ChecklistEvent[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([enterpriseId])
+  @@index([driverId])
+  @@map("route")
+}
+
+model Event {
+  id             String         @id @default(cuid())
+  position       Int
+  status         EventStatus    @default(PENDING)
+  deliverStatus  DeliverStatus  @default(PENDING)
+  priority       PriorityStatus @default(NORMAL)
+  eta            DateTime?
+  arrivedAt      DateTime?
+  completedAt    DateTime?
+  evLat          Float?
+  evLng          Float?
+  comment        String?
+  signatureUrl   String?
+  routeId        String
+  route          Route          @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  stopId         String
+  stop           Stop           @relation(fields: [stopId], references: [id], onDelete: Cascade)
+  evidences      Evidence[]
+
+  @@index([routeId])
+  @@map("event")
+}
+
+model Evidence {
+  id        String   @id @default(cuid())
+  url       String
+  type      String   @default("photo")
+  approved  Boolean  @default(false)
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([eventId])
+  @@map("evidence")
+}
+
+model ChecklistEvent {
+  id        String   @id @default(cuid())
+  label     String
+  required  Boolean  @default(false)
+  photo     Boolean  @default(false)
+  done      Boolean  @default(false)
+  photoUrl  String?
+  routeId   String
+  route     Route    @relation(fields: [routeId], references: [id], onDelete: Cascade)
+
+  @@index([routeId])
+  @@map("checklist_event")
+}
