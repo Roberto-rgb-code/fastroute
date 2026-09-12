@@ -23,6 +23,7 @@ terraform.tfstate
 terraform.tfstate.*
 .terraform/
 *.tfvars
+tfplan
 
 # IDE
 .idea/

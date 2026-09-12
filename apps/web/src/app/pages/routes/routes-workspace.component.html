@@ -1,76 +1,152 @@
-<div class="ws" [class.list-closed]="!listOpen()" [class.detail-closed]="!selectedId()" [class.map-closed]="!mapOpen()">
-  <!-- ═══════════ Panel 1: lista de rutas del día (desplegable) ═══════════ -->
-  <aside class="panel list-panel">
-    <div class="panel-rail" (click)="listOpen.set(true)" title="Mostrar rutas">
+<div class="ws" [class.list-closed]="!listOpen()">
+  <!-- ═══════════ Panel 1: actividad del día ═══════════ -->
+  <aside class="relative flex min-w-0 flex-col overflow-hidden border-r border-ink-200 bg-white">
+    <!-- Riel cuando está colapsado -->
+    <button
+      type="button"
+      class="absolute inset-y-0 left-0 z-10 hidden w-[46px] flex-col items-center gap-1.5 border-r border-ink-200 bg-white pt-4 text-ink-500 hover:bg-brand-50 hover:text-brand-600"
+      [class.!flex]="!listOpen()"
+      (click)="listOpen.set(true)"
+      title="Mostrar rutas"
+    >
       <app-icon name="route" [size]="20" />
-      <span class="rail-count">{{ routes().length }}</span>
-    </div>
+      <span class="rounded-full bg-brand-600 px-1.5 text-[10px] font-extrabold text-white">{{ routes().length }}</span>
+    </button>
 
-    <div class="panel-inner">
-      <header class="panel-head">
-        <div class="ph-title">
-          <h2>Rutas del día</h2>
-          <span class="muted day">{{ dayLabel() }}</span>
+    <div class="flex h-full min-h-0 flex-col" [class.hidden]="!listOpen()">
+      <header class="flex items-start justify-between gap-2 px-4 pt-4">
+        <div>
+          <h2 class="text-base font-bold text-ink-900">Actividad del día</h2>
+          <span class="text-xs capitalize text-ink-500">{{ dayLabel() }}</span>
         </div>
-        <button class="icon-btn" (click)="listOpen.set(false)" title="Ocultar lista">
-          <app-icon name="chevron" [size]="18" class="flip" />
+        <button type="button" class="grid rounded-lg p-1.5 text-ink-500 hover:bg-ink-100" (click)="listOpen.set(false)" title="Ocultar lista">
+          <app-icon name="chevron" [size]="18" class="rotate-180" />
         </button>
       </header>
 
-      <div class="day-nav">
-        <button class="icon-btn" (click)="shiftDay(-1)" title="Día anterior"><app-icon name="chevron" [size]="16" class="flip" /></button>
-        <input type="date" class="input input-sm" [ngModel]="day()" (ngModelChange)="onDay($event)" />
-        <button class="icon-btn" (click)="shiftDay(1)" title="Día siguiente"><app-icon name="chevron" [size]="16" /></button>
-        <a class="btn btn-primary btn-sm" routerLink="/app/routes/new" title="Nueva ruta"><app-icon name="plus" [size]="16" /></a>
+      <div class="flex items-center gap-1.5 px-4 pt-3">
+        <button type="button" class="grid rounded-lg p-1.5 text-ink-500 hover:bg-ink-100" (click)="shiftDay(-1)" title="Día anterior">
+          <app-icon name="chevron" [size]="16" class="rotate-180" />
+        </button>
+        <input
+          type="date"
+          class="min-w-0 flex-1 rounded-lg border border-ink-200 px-2 py-1.5 text-xs font-semibold text-ink-700"
+          [ngModel]="day()"
+          (ngModelChange)="onDay($event)"
+        />
+        <button type="button" class="grid rounded-lg p-1.5 text-ink-500 hover:bg-ink-100" (click)="shiftDay(1)" title="Día siguiente">
+          <app-icon name="chevron" [size]="16" />
+        </button>
+        <a class="grid rounded-lg bg-brand-600 p-1.5 text-white hover:bg-brand-700" routerLink="/app/routes/new" title="Nueva ruta">
+          <app-icon name="plus" [size]="16" />
+        </a>
       </div>
 
-      <div class="search">
-        <app-icon name="search" [size]="16" />
-        <input class="input input-sm" placeholder="Buscar ruta, operador, placa…" [ngModel]="search()" (ngModelChange)="search.set($event)" />
+      <!-- Buscador + filtro (estilo Search / filter) -->
+      <div class="flex items-center gap-2 px-4 pt-3">
+        <label class="flex min-w-0 flex-1 items-center gap-2 rounded-xl bg-ink-100 px-3 py-2 text-ink-400 focus-within:ring-2 focus-within:ring-brand-100">
+          <app-icon name="search" [size]="16" />
+          <input
+            class="min-w-0 flex-1 bg-transparent text-sm text-ink-900 outline-none placeholder:text-ink-400"
+            placeholder="Buscar ruta, operador, placa…"
+            [ngModel]="search()"
+            (ngModelChange)="search.set($event)"
+          />
+        </label>
+        <button
+          type="button"
+          class="grid shrink-0 place-items-center rounded-xl border border-ink-200 p-2 text-ink-500 hover:bg-ink-50"
+          [class.text-brand-600]="filter() !== 'ALL'"
+          [class.border-brand-200]="filter() !== 'ALL'"
+          (click)="filter.set('ALL')"
+          title="Quitar filtros"
+        >
+          <app-icon name="filter" [size]="16" />
+        </button>
       </div>
 
-      <div class="chips">
+      <div class="flex flex-wrap gap-1.5 px-4 pb-3 pt-2.5">
         @for (f of filters; track f.key) {
-          <button class="chip" [class.on]="filter() === f.key" (click)="filter.set(f.key)">
+          <button
+            type="button"
+            class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold"
+            [class.bg-brand-600]="filter() === f.key"
+            [class.text-white]="filter() === f.key"
+            [class.bg-ink-100]="filter() !== f.key"
+            [class.text-ink-600]="filter() !== f.key"
+            (click)="filter.set(f.key)"
+          >
             {{ f.label }}
             @if (f.key === 'OPEN') { <b>{{ counts().open }}</b> }
             @if (f.key === 'DONE') { <b>{{ counts().done }}</b> }
-            @if (f.key === 'APPROVALS' && counts().approvals) { <b class="warn">{{ counts().approvals }}</b> }
+            @if (f.key === 'APPROVALS' && counts().approvals) { <b>{{ counts().approvals }}</b> }
           </button>
         }
       </div>
 
-      <div class="list">
+      <!-- Tarjetas de actividad -->
+      <div class="min-h-0 flex-1 overflow-y-auto border-t border-ink-100">
         @if (loadingList()) {
-          <p class="muted empty">Cargando…</p>
+          <p class="px-4 py-8 text-center text-sm text-ink-500">Cargando…</p>
         } @else if (!visible().length) {
-          <div class="empty">
+          <div class="flex flex-col items-center gap-2 px-4 py-10 text-center text-ink-400">
             <app-icon name="route" [size]="34" />
-            <p class="muted">Sin rutas en este filtro.</p>
-            <a routerLink="/app/routes/new" class="btn btn-ghost btn-sm">Crear ruta</a>
+            <p class="text-sm">Sin rutas en este filtro.</p>
+            <a routerLink="/app/routes/new" class="rounded-lg border border-ink-200 px-3 py-1.5 text-xs font-semibold text-ink-700 hover:bg-ink-50">Crear ruta</a>
           </div>
         } @else {
           @for (r of visible(); track r.id) {
-            <button class="route-card" [class.on]="selectedId() === r.id" (click)="select(r)">
-              <div class="rc-top">
-                <strong>{{ r.name }}</strong>
-                <span [class]="'badge badge-' + ROUTE_BADGE[r.status]">{{ ROUTE_LABEL[r.status] }}</span>
+            <button
+              type="button"
+              class="relative w-full border-b border-ink-100 px-4 py-3.5 text-left transition hover:bg-ink-50"
+              [class.bg-brand-50]="selectedId() === r.id"
+              (click)="select(r)"
+            >
+              @if (selectedId() === r.id) {
+                <span class="absolute inset-y-2 left-0 w-[3px] rounded-r bg-brand-600"></span>
+              }
+              <div class="flex items-start gap-3">
+                <span class="grid h-9 w-9 shrink-0 place-items-center rounded-full text-white" [class]="toneDot(ROUTE_BADGE[r.status])">
+                  <app-icon name="vehicle" [size]="17" />
+                </span>
+                <div class="min-w-0 flex-1">
+                  <strong class="block truncate text-sm font-semibold text-ink-900">{{ r.name }}</strong>
+                  <span class="text-xs font-semibold" [class]="toneText(ROUTE_BADGE[r.status])">{{ ROUTE_LABEL[r.status] }}</span>
+                </div>
+                <div class="flex shrink-0 items-center gap-1">
+                  @if (pendingApprovals(r) || r.status === 'CHECKLIST_PENDING') {
+                    <span class="inline-flex items-center gap-0.5 rounded-md bg-warn-bg px-1.5 py-0.5 text-[10px] font-bold text-warn" title="Requiere aprobación">
+                      <app-icon name="bell" [size]="11" /> {{ pendingApprovals(r) || '!' }}
+                    </span>
+                  }
+                  @if (r._count?.incidents) {
+                    <span class="inline-flex items-center gap-0.5 rounded-md bg-danger-bg px-1.5 py-0.5 text-[10px] font-bold text-danger" title="Incidencias">
+                      <app-icon name="alert" [size]="11" /> {{ r._count?.incidents }}
+                    </span>
+                  }
+                </div>
               </div>
-              <div class="rc-meta muted">
-                <span><app-icon name="driver" [size]="13" /> {{ r.driver?.name || 'Sin operador' }}</span>
-                <span><app-icon name="vehicle" [size]="13" /> {{ r.vehicle?.plate || '—' }}</span>
+
+              <!-- Mini timeline salida → destino -->
+              <div class="relative mt-3 pl-[46px]">
+                <span class="absolute left-[17px] top-1.5 h-[calc(100%-14px)] w-px border-l border-dashed border-ink-200"></span>
+                <div class="relative pb-2">
+                  <span class="absolute -left-[33px] top-1 h-2.5 w-2.5 rounded-full border-2 border-white bg-ink-900"></span>
+                  <span class="block text-[10px] font-bold uppercase tracking-wider text-ink-400">Salida</span>
+                  <span class="block truncate text-xs text-ink-700">{{ originOf(r) }}</span>
+                </div>
+                <div class="relative">
+                  <span class="absolute -left-[33px] top-1 h-2.5 w-2.5 rounded-full border-2 border-white bg-brand-600"></span>
+                  <span class="block text-[10px] font-bold uppercase tracking-wider text-ink-400">Destino</span>
+                  <span class="block truncate text-xs text-ink-700">{{ destinationOf(r) }}</span>
+                </div>
               </div>
-              <div class="rc-foot">
-                <div class="bar"><i [style.width.%]="progress(r)"></i></div>
-                <span class="muted">{{ progress(r) }}% · {{ r._count?.events || 0 }} paradas</span>
-                @if (pendingApprovals(r) || r.status === 'CHECKLIST_PENDING') {
-                  <span class="pill warn" title="Requiere aprobación">
-                    <app-icon name="bell" [size]="11" /> {{ pendingApprovals(r) || '!' }}
-                  </span>
-                }
-                @if (r._count?.incidents) {
-                  <span class="pill danger" title="Incidencias"><app-icon name="alert" [size]="11" /> {{ r._count?.incidents }}</span>
-                }
+
+              <div class="mt-3 flex items-center gap-2">
+                <span class="h-1.5 flex-1 overflow-hidden rounded-full bg-ink-100">
+                  <i class="block h-full rounded-full bg-brand-600 transition-[width]" [style.width.%]="progress(r)"></i>
+                </span>
+                <span class="shrink-0 text-[11px] tabular-nums text-ink-500">{{ progress(r) }}% · {{ r._count?.events || 0 }} paradas</span>
               </div>
             </button>
           }
@@ -79,343 +155,540 @@
     </div>
   </aside>
 
-  <!-- ═══════════ Panel 2: detalle ═══════════ -->
-  <section class="panel detail-panel">
-    <div class="panel-rail" title="Selecciona una ruta para ver el detalle">
-      <app-icon name="route" [size]="20" />
-    </div>
-    <div class="panel-inner">
+  <!-- ═══════════ Panel 2: detalle con mapa ═══════════ -->
+  <section class="flex min-w-0 flex-col overflow-y-auto bg-ink-50">
     @if (!selectedId()) {
-      <div class="empty big">
-        <app-icon name="route" [size]="56" />
-        <h3>Selecciona una ruta</h3>
-        <p class="muted">Elige una ruta del panel izquierdo para ver paradas, checklist, gastos e incidencias.</p>
-        <a routerLink="/app/routes/new" class="btn btn-primary"><app-icon name="plus" [size]="16" /> Nueva ruta</a>
+      <div class="flex min-h-0 flex-1 flex-col">
+        <div class="min-h-[320px] flex-1 overflow-hidden border-b border-ink-200">
+          <app-route-map [points]="mapPoints()" />
+        </div>
+        <div class="flex items-center justify-between gap-4 px-6 py-5">
+          <div>
+            <h3 class="text-base font-bold text-ink-900">Selecciona una ruta</h3>
+            <p class="text-sm text-ink-500">El mapa muestra todas las paradas del día. Elige una ruta para ver su detalle y evidencias.</p>
+          </div>
+          <a routerLink="/app/routes/new" class="inline-flex shrink-0 items-center gap-2 rounded-lg bg-brand-600 px-3 py-2 text-sm font-semibold text-white hover:bg-brand-700">
+            <app-icon name="plus" [size]="16" /> Nueva ruta
+          </a>
+        </div>
       </div>
     } @else if (loadingDetail() && !detail()) {
-      <p class="muted empty">Cargando ruta…</p>
+      <p class="px-6 py-10 text-center text-sm text-ink-500">Cargando ruta…</p>
     } @else {
-    @if (detail(); as r) {
-      <header class="detail-head">
-        <div class="dh-main">
-          <div class="dh-title">
-            <h2>{{ r.name }}</h2>
-            <span [class]="'badge badge-' + ROUTE_BADGE[r.status]">{{ ROUTE_LABEL[r.status] }}</span>
+      @if (detail(); as r) {
+        <!-- Encabezado: id + acciones -->
+        <header class="flex flex-wrap items-center justify-between gap-3 bg-white px-6 pt-5">
+          <div class="flex min-w-0 items-center gap-2">
+            <span class="text-sm text-ink-400">#Ruta:</span>
+            <h2 class="truncate text-lg font-bold text-ink-900">{{ r.name }}</h2>
+            <span class="rounded-md px-2 py-1 text-[11px] font-bold" [class]="tonePill(ROUTE_BADGE[r.status])">{{ ROUTE_LABEL[r.status] }}</span>
           </div>
-          <div class="dh-meta muted">
-            <span><app-icon name="driver" [size]="14" /> {{ r.driver?.name || 'Sin operador' }}</span>
-            <span><app-icon name="vehicle" [size]="14" /> {{ r.vehicle?.plate || '—' }}</span>
-            @if (r.client) { <span><app-icon name="client" [size]="14" /> {{ r.client.name }}</span> }
-            <span><app-icon name="clock" [size]="14" /> Planificada {{ dateTime(r.dateStart) }}</span>
-            @if (r.dateStarted) { <span><app-icon name="play" [size]="14" /> Inició {{ time(r.dateStarted) }}</span> }
-          </div>
-        </div>
 
-        <div class="dh-actions">
-          @if (r.status === 'CHECKLIST_PENDING' && auth.canDispatch()) {
-            <button class="btn btn-primary btn-sm" (click)="approveChecklist()"><app-icon name="check" [size]="16" /> Aprobar checklist</button>
-          }
-          @if (r.status === 'ENROUTE' && auth.canDispatch()) {
-            <button class="btn btn-ghost btn-sm" (click)="changeStatus('PAUSED')"><app-icon name="pause" [size]="16" /> Pausar</button>
-          }
-          @if (r.status === 'PAUSED' && auth.canDispatch()) {
-            <button class="btn btn-ghost btn-sm" (click)="changeStatus('ENROUTE')"><app-icon name="play" [size]="16" /> Reanudar</button>
-          }
-          @if (canNotifyDriver(r)) {
-            <button class="btn btn-ghost btn-sm" (click)="notifyDriver()" title="Notificar chofer por WhatsApp"><app-icon name="whatsapp" [size]="16" /></button>
-          }
-          @if (isTrackable(r)) {
-            <a class="btn btn-ghost btn-sm" routerLink="/app/tracking" [queryParams]="{ route: r.id }" title="Ver en seguimiento"><app-icon name="map" [size]="16" /></a>
-          }
-          <div class="menu-wrap">
-            <button class="btn btn-ghost btn-sm" (click)="toggleActions()"><app-icon name="more" [size]="18" /></button>
-            @if (actionsOpen()) {
-              <div class="menu" (click)="actionsOpen.set(false)">
-                @if (auth.canDispatch()) {
-                  <button (click)="openDuplicate()"><app-icon name="copy" [size]="16" /> Duplicar ruta</button>
-                }
-                @if (!isTerminal(r) && auth.canDispatch()) {
-                  <button (click)="cancelOpen.set(true)"><app-icon name="x" [size]="16" /> Cancelar ruta</button>
-                }
-                @if (auth.isAdmin()) {
-                  <button class="danger" (click)="remove()"><app-icon name="trash" [size]="16" /> Eliminar</button>
-                }
-              </div>
+          <div class="flex shrink-0 items-center gap-2">
+            @if (r.status === 'CHECKLIST_PENDING' && auth.canDispatch()) {
+              <button type="button" class="inline-flex items-center gap-1.5 rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700" (click)="approveChecklist()">
+                <app-icon name="check" [size]="15" /> Aprobar checklist
+              </button>
             }
+            @if (r.status === 'ENROUTE' && auth.canDispatch()) {
+              <button type="button" class="inline-flex items-center gap-1.5 rounded-lg border border-ink-200 bg-white px-3 py-1.5 text-xs font-semibold text-ink-700 hover:bg-ink-50" (click)="changeStatus('PAUSED')">
+                <app-icon name="pause" [size]="15" /> Pausar
+              </button>
+            }
+            @if (r.status === 'PAUSED' && auth.canDispatch()) {
+              <button type="button" class="inline-flex items-center gap-1.5 rounded-lg border border-ink-200 bg-white px-3 py-1.5 text-xs font-semibold text-ink-700 hover:bg-ink-50" (click)="changeStatus('ENROUTE')">
+                <app-icon name="play" [size]="15" /> Reanudar
+              </button>
+            }
+            @if (canNotifyDriver(r)) {
+              <button type="button" class="grid rounded-lg border border-ink-200 bg-white p-1.5 text-ok hover:bg-ink-50" (click)="notifyDriver()" title="Notificar chofer por WhatsApp">
+                <app-icon name="whatsapp" [size]="16" />
+              </button>
+            }
+            @if (isTrackable(r)) {
+              <a class="grid rounded-lg border border-ink-200 bg-white p-1.5 text-ink-600 hover:bg-ink-50" routerLink="/app/tracking" [queryParams]="{ route: r.id }" title="Ver en seguimiento">
+                <app-icon name="map" [size]="16" />
+              </a>
+            }
+            <button type="button" class="grid rounded-lg border border-ink-200 bg-white p-1.5 text-ink-600 hover:bg-ink-50" (click)="toggleMap()" [title]="mapOpen() ? 'Ocultar mapa' : 'Mostrar mapa'">
+              <app-icon name="collapse" [size]="16" />
+            </button>
+            <div class="relative">
+              <button type="button" class="grid rounded-lg border border-ink-200 bg-white p-1.5 text-ink-600 hover:bg-ink-50" (click)="toggleActions()">
+                <app-icon name="more" [size]="16" />
+              </button>
+              @if (actionsOpen()) {
+                <div class="absolute right-0 top-[calc(100%+6px)] z-30 flex w-52 flex-col rounded-xl border border-ink-200 bg-white p-1 shadow-[0_20px_45px_rgba(15,23,42,0.18)]" (click)="actionsOpen.set(false)">
+                  @if (auth.canDispatch()) {
+                    <button type="button" class="flex items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-ink-700 hover:bg-ink-50" (click)="openDuplicate()">
+                      <app-icon name="copy" [size]="16" /> Duplicar ruta
+                    </button>
+                  }
+                  @if (!isTerminal(r) && auth.canDispatch()) {
+                    <button type="button" class="flex items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-ink-700 hover:bg-ink-50" (click)="cancelOpen.set(true)">
+                      <app-icon name="x" [size]="16" /> Cancelar ruta
+                    </button>
+                  }
+                  @if (auth.isAdmin()) {
+                    <button type="button" class="flex items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-danger hover:bg-danger-bg" (click)="remove()">
+                      <app-icon name="trash" [size]="16" /> Eliminar
+                    </button>
+                  }
+                </div>
+              }
+            </div>
           </div>
-          <button class="icon-btn map-toggle" (click)="toggleMap()" [title]="mapOpen() ? 'Ocultar mapa' : 'Mostrar mapa'">
-            <app-icon name="map" [size]="18" />
-          </button>
+        </header>
+
+        <!-- Chips de datos con iconos de color -->
+        <div class="flex flex-wrap items-stretch gap-y-3 border-b border-ink-200 bg-white px-6 py-4">
+          <div class="flex min-w-[180px] flex-1 items-center gap-2.5 pr-4">
+            <span class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-info text-white"><app-icon name="driver" [size]="17" /></span>
+            <span class="min-w-0">
+              <strong class="block truncate text-sm text-ink-900">{{ r.driver?.name || 'Sin operador' }}</strong>
+              <span class="text-[11px] text-ink-400">Operador</span>
+            </span>
+          </div>
+          <div class="flex min-w-[180px] flex-1 items-center gap-2.5 border-l border-ink-100 px-4">
+            <span class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#ec4899] text-white"><app-icon name="vehicle" [size]="17" /></span>
+            <span class="min-w-0">
+              <strong class="block truncate text-sm text-ink-900">{{ r.vehicle?.plate || '—' }}</strong>
+              <span class="text-[11px] text-ink-400">Unidad{{ r.vehicle?.name ? ' · ' + r.vehicle?.name : '' }}</span>
+            </span>
+          </div>
+          <div class="flex min-w-[180px] flex-1 items-center gap-2.5 border-l border-ink-100 px-4">
+            <span class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#f59e0b] text-white"><app-icon name="client" [size]="17" /></span>
+            <span class="min-w-0">
+              <strong class="block truncate text-sm text-ink-900">{{ r.client?.name || 'Sin cliente' }}</strong>
+              <span class="text-[11px] text-ink-400">Cliente</span>
+            </span>
+          </div>
+          <div class="flex min-w-[180px] flex-1 items-center gap-2.5 border-l border-ink-100 pl-4">
+            <span class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#0ea5a4] text-white"><app-icon name="clock" [size]="17" /></span>
+            <span class="min-w-0">
+              <strong class="block truncate text-sm text-ink-900">{{ r.dateStarted ? time(r.dateStarted) : dateTime(r.dateStart) }}</strong>
+              <span class="text-[11px] text-ink-400">{{ r.dateStarted ? 'Inicio real' : 'Planificada' }}</span>
+            </span>
+          </div>
         </div>
-      </header>
 
-      @if (r.status === 'CHECKLIST_PENDING') {
-        <div class="banner warn">
-          <app-icon name="alert" [size]="18" />
-          <div><strong>Checklist con obligatorios pendientes.</strong> El operador no puede salir hasta completar la evidencia o que un admin apruebe.</div>
-        </div>
-      }
-      @if (r.status === 'CANCELLED' && r.cancelReason) {
-        <div class="banner danger"><app-icon name="x" [size]="18" /><div><strong>Cancelada:</strong> {{ r.cancelReason }}</div></div>
-      }
-
-      <div class="stats">
-        <div class="stat"><span>Progreso</span><strong>{{ progress(r) }}%</strong><div class="bar"><i [style.width.%]="progress(r)"></i></div></div>
-        <div class="stat"><span>Paradas</span><strong>{{ r.events.length }}</strong></div>
-        <div class="stat"><span>Distancia</span><strong>{{ km(r.totalDistance) }}</strong></div>
-        <div class="stat"><span>Duración est.</span><strong>{{ dur(r.totalDuration) }}</strong></div>
-        <div class="stat"><span>Km recorridos</span><strong>{{ kmTraveled(r) }}</strong></div>
-      </div>
-
-      <nav class="tabs">
-        @for (t of tabs; track t.key) {
-          <button [class.on]="tab() === t.key" (click)="tab.set(t.key)">
-            <app-icon [name]="t.icon" [size]="16" /> {{ t.label }}
-            @if (t.key === 'expenses' && r.expenses.length) { <b>{{ r.expenses.length }}</b> }
-            @if (t.key === 'incidents' && r.incidents.length) { <b class="danger">{{ r.incidents.length }}</b> }
-          </button>
-        }
-      </nav>
-
-      <!-- ── Tab: Info ── -->
-      @if (tab() === 'info') {
-        <div class="grid2">
-          <div class="card card-pad">
-            <h4>Viaje</h4>
-            <dl class="dl">
-              <dt>Fecha planificada</dt><dd>{{ dateTime(r.dateStart) }}</dd>
-              <dt>Inicio real</dt><dd>{{ dateTime(r.dateStarted) }}</dd>
-              <dt>Cierre</dt><dd>{{ dateTime(r.dateEnd) }}</dd>
-              <dt>Plantilla</dt><dd>{{ r.template?.name || 'Manual' }}</dd>
-              <dt>Cliente</dt><dd>{{ r.client?.name || '—' }}</dd>
-            </dl>
-          </div>
-          <div class="card card-pad">
-            <h4>Kilometraje y combustible</h4>
-            <dl class="dl">
-              <dt>Km inicial</dt><dd>{{ r.kmInitial || 'No capturado' }}</dd>
-              <dt>Km final</dt><dd>{{ r.kmFinal || '—' }}</dd>
-              <dt>Gasolina inicial</dt><dd>{{ r.gasInitial ? r.gasInitial + ' L' : 'No capturado' }}</dd>
-              <dt>Gasolina final</dt><dd>{{ r.gasFinal ? r.gasFinal + ' L' : '—' }}</dd>
-              <dt>Recorrido</dt><dd>{{ kmTraveled(r) }}</dd>
-            </dl>
-          </div>
-          <div class="card card-pad">
-            <h4>Operador y unidad</h4>
-            <dl class="dl">
-              <dt>Operador</dt><dd>{{ r.driver?.name || '—' }}</dd>
-              <dt>Teléfono</dt><dd>{{ r.driver?.phone || '—' }}</dd>
-              <dt>Unidad</dt><dd>{{ r.vehicle?.plate || '—' }} {{ r.vehicle?.name ? '· ' + r.vehicle?.name : '' }}</dd>
-            </dl>
-          </div>
-          @if (r.finalImg) {
-            <div class="card card-pad">
-              <h4>Evidencia de llegada al destino</h4>
-              <img class="thumb big" [src]="r.finalImg" (click)="lightbox.set(r.finalImg!)" alt="Evidencia destino" />
+        <div class="flex flex-col gap-4 p-6">
+          @if (r.status === 'CHECKLIST_PENDING') {
+            <div class="flex items-start gap-2.5 rounded-xl border border-warn/20 bg-warn-bg px-4 py-3 text-sm text-ink-900">
+              <app-icon name="alert" [size]="18" class="mt-0.5 text-warn" />
+              <div><strong>Checklist con obligatorios pendientes.</strong> El operador no puede salir hasta completar la evidencia o que un admin apruebe.</div>
             </div>
           }
-        </div>
-      }
+          @if (r.status === 'CANCELLED' && r.cancelReason) {
+            <div class="flex items-start gap-2.5 rounded-xl border border-danger/20 bg-danger-bg px-4 py-3 text-sm text-ink-900">
+              <app-icon name="x" [size]="18" class="mt-0.5 text-danger" />
+              <div><strong>Cancelada:</strong> {{ r.cancelReason }}</div>
+            </div>
+          }
 
-      <!-- ── Tab: Paradas ── -->
-      @if (tab() === 'stops') {
-        <div class="card stops-card">
-          <ol class="stops">
-            @for (e of r.events; track e.id) {
-              <li [class.done]="e.status === 'COMPLETED'" [class.issue]="e.status === 'ISSUE'">
-                <div class="pos" [class.done]="e.status === 'COMPLETED'" [class.issue]="e.status === 'ISSUE'">
-                  @if (e.status === 'COMPLETED') { <app-icon name="check" [size]="14" /> } @else { {{ e.position }} }
-                </div>
-                <div class="stop-info">
-                  <div class="si-top">
-                    <strong>{{ e.stop.label }}</strong>
-                    @if (e.stop.tag) { <span class="tag" [style.background]="e.stop.tagColor || '#6366f1'">{{ e.stop.tag }}</span> }
-                    @if (e.stop.type !== 'VISIT') { <span class="badge badge-muted">{{ STOP_TYPE_LABEL[e.stop.type] }}</span> }
-                    @if (e.priority === 'URGENT') { <span class="badge badge-danger">Urgente</span> }
+          <!-- Mapa de la ruta -->
+          @if (mapOpen()) {
+            <div class="overflow-hidden rounded-2xl border border-ink-200 bg-white">
+              <div class="h-[280px] w-full">
+                <app-route-map [points]="mapPoints()" />
+              </div>
+              <div class="flex flex-wrap items-center gap-3 border-t border-ink-100 px-4 py-2.5 text-[11px] text-ink-500">
+                <span class="inline-flex items-center gap-1.5"><i class="h-2 w-2 rounded-full bg-brand-600"></i> Pendiente</span>
+                <span class="inline-flex items-center gap-1.5"><i class="h-2 w-2 rounded-full bg-ok"></i> Atendida</span>
+                <span class="inline-flex items-center gap-1.5"><i class="h-2 w-2 rounded-full bg-danger"></i> Con problema</span>
+                @if (isTrackable(r)) {
+                  <a class="ml-auto font-semibold text-brand-600" routerLink="/app/tracking" [queryParams]="{ route: r.id }">Ver en vivo →</a>
+                }
+              </div>
+            </div>
+          }
+
+          <!-- Métricas -->
+          <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+            <div class="rounded-xl border border-ink-200 bg-white px-3.5 py-3">
+              <span class="text-[11px] text-ink-400">Progreso</span>
+              <strong class="block text-lg leading-tight text-ink-900">{{ progress(r) }}%</strong>
+              <span class="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-ink-100"><i class="block h-full rounded-full bg-brand-600" [style.width.%]="progress(r)"></i></span>
+            </div>
+            <div class="rounded-xl border border-ink-200 bg-white px-3.5 py-3">
+              <span class="text-[11px] text-ink-400">Paradas</span>
+              <strong class="block text-lg leading-tight text-ink-900">{{ r.events.length }}</strong>
+            </div>
+            <div class="rounded-xl border border-ink-200 bg-white px-3.5 py-3">
+              <span class="text-[11px] text-ink-400">Distancia</span>
+              <strong class="block text-lg leading-tight text-ink-900">{{ km(r.totalDistance) }}</strong>
+            </div>
+            <div class="rounded-xl border border-ink-200 bg-white px-3.5 py-3">
+              <span class="text-[11px] text-ink-400">Duración est.</span>
+              <strong class="block text-lg leading-tight text-ink-900">{{ dur(r.totalDuration) }}</strong>
+            </div>
+            <div class="rounded-xl border border-ink-200 bg-white px-3.5 py-3">
+              <span class="text-[11px] text-ink-400">Km recorridos</span>
+              <strong class="block text-lg leading-tight text-ink-900">{{ kmTraveled(r) }}</strong>
+            </div>
+          </div>
+
+          <!-- Tabs -->
+          <nav class="flex flex-wrap gap-1 border-b border-ink-200">
+            @for (t of tabs; track t.key) {
+              <button
+                type="button"
+                class="-mb-px inline-flex items-center gap-1.5 border-b-2 px-3 py-2.5 text-sm font-semibold"
+                [class.border-brand-600]="tab() === t.key"
+                [class.text-brand-600]="tab() === t.key"
+                [class.border-transparent]="tab() !== t.key"
+                [class.text-ink-500]="tab() !== t.key"
+                (click)="tab.set(t.key)"
+              >
+                <app-icon [name]="t.icon" [size]="16" /> {{ t.label }}
+                @if (t.key === 'expenses' && r.expenses.length) {
+                  <b class="rounded-full bg-ink-100 px-1.5 text-[10px] text-ink-700">{{ r.expenses.length }}</b>
+                }
+                @if (t.key === 'incidents' && r.incidents.length) {
+                  <b class="rounded-full bg-danger-bg px-1.5 text-[10px] text-danger">{{ r.incidents.length }}</b>
+                }
+              </button>
+            }
+          </nav>
+
+          <!-- ── Tab: Paradas (línea de tiempo) ── -->
+          @if (tab() === 'stops') {
+            <div class="relative pl-6">
+              <span class="absolute bottom-4 left-[5px] top-3 w-px border-l border-dashed border-ink-200"></span>
+              @for (e of orderedEvents(r); track e.id) {
+                <div class="relative pb-4">
+                  <span
+                    class="absolute -left-6 top-2 h-3 w-3 rounded-full border-2 border-white"
+                    [class]="toneDot(EVENT_BADGE[e.status])"
+                  ></span>
+                  <div class="mb-1.5 flex flex-wrap items-center gap-2">
+                    <span class="text-[11px] font-bold uppercase tracking-wider text-ink-400">
+                      @if (e.position === 1) { Origen } @else if (e.position === r.events.length) { Destino } @else { Parada {{ e.position }} }:
+                    </span>
+                    <span class="text-xs text-ink-600">{{ e.stop.address }}</span>
+                    @if (e.stop.tag) {
+                      <span class="rounded-md px-1.5 py-0.5 text-[10px] font-bold text-white" [style.background]="e.stop.tagColor || '#6366f1'">{{ e.stop.tag }}</span>
+                    }
+                    @if (e.stop.type !== 'VISIT') {
+                      <span class="rounded-md bg-ink-100 px-1.5 py-0.5 text-[10px] font-semibold text-ink-600">{{ STOP_TYPE_LABEL[e.stop.type] }}</span>
+                    }
+                    @if (e.priority === 'URGENT') {
+                      <span class="rounded-md bg-danger-bg px-1.5 py-0.5 text-[10px] font-bold text-danger">Urgente</span>
+                    }
                   </div>
-                  <span class="muted addr">{{ e.stop.address }}</span>
-                  @if (e.comment) { <span class="comment">“{{ e.comment }}”</span> }
-                  @if (e.evidences.length) {
-                    <div class="thumbs">
-                      @for (ev of e.evidences; track ev.id) {
-                        <img class="thumb" [class.sig]="ev.type === 'signature'" [src]="ev.url" (click)="lightbox.set(ev.url)" [title]="ev.type === 'signature' ? 'Firma' : 'Evidencia'" alt="" />
+
+                  <div
+                    class="overflow-hidden rounded-xl border border-ink-200 bg-white"
+                    [class.border-l-4]="isStopOpen(e.id)"
+                    [class.border-l-brand-600]="isStopOpen(e.id)"
+                  >
+                    <!-- Fila resumen en columnas -->
+                    <div class="grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_auto_auto] items-center gap-3 px-4 py-3">
+                      <div class="min-w-0">
+                        <strong class="block truncate text-sm text-ink-900">{{ e.stop.label }}</strong>
+                        <span class="text-[11px] text-ink-400">Parada</span>
+                      </div>
+                      <div class="min-w-0">
+                        <strong class="block truncate text-sm text-ink-900">{{ r.client?.name || '—' }}</strong>
+                        <span class="text-[11px] text-ink-400">Cliente</span>
+                      </div>
+                      <div class="min-w-0">
+                        <strong class="block truncate text-sm text-ink-900">{{ e.stop.phoneNotification || '—' }}</strong>
+                        <span class="text-[11px] text-ink-400">Teléfono</span>
+                      </div>
+                      <div class="text-right">
+                        <strong class="block whitespace-nowrap text-sm text-ink-900">{{ e.completedAt ? time(e.completedAt) : (e.stop.schedule || '—') }}</strong>
+                        <span class="text-[11px] text-ink-400">{{ e.completedAt ? 'Atendida' : 'Horario' }}</span>
+                      </div>
+                      <div class="flex items-center gap-2">
+                        <span class="rounded-md px-2 py-1 text-[11px] font-bold" [class]="tonePill(EVENT_BADGE[e.status])">{{ EVENT_LABEL[e.status] }}</span>
+                        @if (e.deliverStatus !== 'PENDING') {
+                          <span class="rounded-md px-2 py-1 text-[11px] font-bold" [class]="tonePill(DELIVER_BADGE[e.deliverStatus])">{{ DELIVER_LABEL[e.deliverStatus] }}</span>
+                        }
+                        <button type="button" class="grid rounded-lg p-1 text-ink-400 hover:bg-ink-100 hover:text-ink-700" (click)="toggleStop(e.id)" [title]="isStopOpen(e.id) ? 'Ocultar detalle' : 'Ver detalle'">
+                          <app-icon name="chevron-down" [size]="16" [class.rotate-180]="isStopOpen(e.id)" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <!-- Detalle expandido -->
+                    @if (isStopOpen(e.id)) {
+                      <div class="border-t border-ink-100 bg-ink-50 px-4 py-3">
+                        @if (e.comment) {
+                          <p class="mb-2 text-sm italic text-ink-700">“{{ e.comment }}”</p>
+                        }
+                        @if (e.evLat) {
+                          <p class="mb-2 text-xs text-ink-500">
+                            GPS de la entrega: {{ e.evLat | number: '1.4-4' }}, {{ e.evLng | number: '1.4-4' }}
+                          </p>
+                        }
+                        @if (e.evidences.length) {
+                          <div class="mb-3 flex flex-wrap gap-2">
+                            @for (ev of e.evidences; track ev.id) {
+                              <img
+                                class="h-16 w-16 cursor-pointer rounded-lg border border-ink-200 object-cover"
+                                [class.bg-white]="ev.type === 'signature'"
+                                [src]="ev.url"
+                                (click)="lightbox.set(ev.url)"
+                                [title]="ev.type === 'signature' ? 'Firma' : 'Evidencia'"
+                                alt=""
+                              />
+                            }
+                          </div>
+                        } @else {
+                          <p class="mb-3 text-xs text-ink-400">Sin evidencia capturada.</p>
+                        }
+
+                        <div class="flex flex-wrap items-center gap-2">
+                          @if (!e.approved && e.evidences.length && auth.canDispatch()) {
+                            <button type="button" class="inline-flex items-center gap-1.5 rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700" (click)="approveEvent(e)">
+                              <app-icon name="check" [size]="14" /> Aprobar evidencia
+                            </button>
+                          }
+                          @if (e.status === 'COMPLETED' && !isTerminal(r) && auth.isAdmin()) {
+                            <button type="button" class="inline-flex items-center gap-1.5 rounded-lg border border-ink-200 bg-white px-3 py-1.5 text-xs font-semibold text-ink-700 hover:bg-ink-50" (click)="retryEvent(e)">
+                              <app-icon name="edit" [size]="14" /> Reintento
+                            </button>
+                          }
+                          @if (canNotifyClient(r) && e.stop.phoneNotification && e.status !== 'COMPLETED') {
+                            <button type="button" class="inline-flex items-center gap-1.5 rounded-lg border border-ink-200 bg-white px-3 py-1.5 text-xs font-semibold text-ink-700 hover:bg-ink-50" (click)="notifyClient(e)">
+                              <app-icon name="sms" [size]="14" /> Avisar cliente
+                            </button>
+                          }
+                          @if (e.status !== 'COMPLETED' && !isTerminal(r) && auth.canDispatch()) {
+                            <select class="rounded-lg border border-ink-200 bg-white px-2 py-1.5 text-xs font-semibold text-ink-700" [ngModel]="e.priority" (ngModelChange)="setPriority(e, $event)" title="Prioridad">
+                              <option value="URGENT">Urgente</option>
+                              <option value="NORMAL">Normal</option>
+                              <option value="NOTURGENT">No urgente</option>
+                            </select>
+                          }
+                        </div>
+                      </div>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+          }
+
+          <!-- ── Tab: Info ── -->
+          @if (tab() === 'info') {
+            <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <div class="rounded-2xl border border-ink-200 bg-white p-5">
+                <h4 class="mb-3 text-sm font-bold text-ink-900">Viaje</h4>
+                <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
+                  <dt class="text-ink-500">Fecha planificada</dt><dd class="text-right font-medium">{{ dateTime(r.dateStart) }}</dd>
+                  <dt class="text-ink-500">Inicio real</dt><dd class="text-right font-medium">{{ dateTime(r.dateStarted) }}</dd>
+                  <dt class="text-ink-500">Cierre</dt><dd class="text-right font-medium">{{ dateTime(r.dateEnd) }}</dd>
+                  <dt class="text-ink-500">Plantilla</dt><dd class="text-right font-medium">{{ r.template?.name || 'Manual' }}</dd>
+                  <dt class="text-ink-500">Cliente</dt><dd class="text-right font-medium">{{ r.client?.name || '—' }}</dd>
+                </dl>
+              </div>
+              <div class="rounded-2xl border border-ink-200 bg-white p-5">
+                <h4 class="mb-3 text-sm font-bold text-ink-900">Kilometraje y combustible</h4>
+                <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
+                  <dt class="text-ink-500">Km inicial</dt><dd class="text-right font-medium">{{ r.kmInitial || 'No capturado' }}</dd>
+                  <dt class="text-ink-500">Km final</dt><dd class="text-right font-medium">{{ r.kmFinal || '—' }}</dd>
+                  <dt class="text-ink-500">Gasolina inicial</dt><dd class="text-right font-medium">{{ r.gasInitial ? r.gasInitial + ' L' : 'No capturado' }}</dd>
+                  <dt class="text-ink-500">Gasolina final</dt><dd class="text-right font-medium">{{ r.gasFinal ? r.gasFinal + ' L' : '—' }}</dd>
+                  <dt class="text-ink-500">Recorrido</dt><dd class="text-right font-medium">{{ kmTraveled(r) }}</dd>
+                </dl>
+              </div>
+              <div class="rounded-2xl border border-ink-200 bg-white p-5">
+                <h4 class="mb-3 text-sm font-bold text-ink-900">Operador y unidad</h4>
+                <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
+                  <dt class="text-ink-500">Operador</dt><dd class="text-right font-medium">{{ r.driver?.name || '—' }}</dd>
+                  <dt class="text-ink-500">Teléfono</dt><dd class="text-right font-medium">{{ r.driver?.phone || '—' }}</dd>
+                  <dt class="text-ink-500">Unidad</dt><dd class="text-right font-medium">{{ r.vehicle?.plate || '—' }} {{ r.vehicle?.name ? '· ' + r.vehicle?.name : '' }}</dd>
+                </dl>
+              </div>
+              @if (r.finalImg) {
+                <div class="rounded-2xl border border-ink-200 bg-white p-5">
+                  <h4 class="mb-3 text-sm font-bold text-ink-900">Evidencia de llegada al destino</h4>
+                  <img class="max-h-56 w-full cursor-pointer rounded-xl object-cover" [src]="r.finalImg" (click)="lightbox.set(r.finalImg!)" alt="Evidencia destino" />
+                </div>
+              }
+            </div>
+          }
+
+          <!-- ── Tab: Checklist ── -->
+          @if (tab() === 'checklist') {
+            <div class="rounded-2xl border border-ink-200 bg-white p-5">
+              @if (!r.checklist.length) {
+                <p class="text-sm text-ink-500">Esta ruta no tiene checklist (el cliente no define ítems).</p>
+              } @else {
+                <ul class="flex flex-col divide-y divide-ink-100">
+                  @for (c of r.checklist; track c.id) {
+                    <li class="flex items-center gap-3 py-2.5">
+                      <span
+                        class="grid h-6 w-6 shrink-0 place-items-center rounded-md border text-white"
+                        [class.bg-ok]="c.done"
+                        [class.border-ok]="c.done"
+                        [class.border-ink-200]="!c.done"
+                      >
+                        @if (c.done) { <app-icon name="check" [size]="14" /> }
+                      </span>
+                      <span class="min-w-0 flex-1 text-sm text-ink-900">
+                        {{ c.label }} @if (c.required) { <em class="not-italic font-bold text-danger">*</em> }
+                      </span>
+                      @if (c.photo) {
+                        @if (c.photoUrl) {
+                          <img class="h-11 w-11 cursor-pointer rounded-lg border border-ink-200 object-cover" [src]="c.photoUrl" (click)="lightbox.set(c.photoUrl!)" alt="" />
+                        } @else {
+                          <span class="inline-flex items-center gap-1 rounded-md bg-warn-bg px-2 py-1 text-[11px] font-bold text-warn"><app-icon name="camera" [size]="12" /> Sin foto</span>
+                        }
+                      }
+                      @if (c.required && !c.done) {
+                        <span class="rounded-md bg-danger-bg px-2 py-1 text-[11px] font-bold text-danger">Pendiente</span>
+                      }
+                    </li>
+                  }
+                </ul>
+                <p class="mt-3 text-xs text-ink-400">* Obligatorio. Un obligatorio con foto se cumple solo con evidencia.</p>
+              }
+              <div class="mt-4 grid grid-cols-1 gap-3 border-t border-ink-100 pt-4 sm:grid-cols-2">
+                <div>
+                  <span class="block text-[11px] text-ink-400">GPS de salida</span>
+                  <strong class="text-sm">{{ r.startLat ? (r.startLat | number: '1.4-4') + ', ' + (r.startLng | number: '1.4-4') : 'No capturado' }}</strong>
+                </div>
+                <div>
+                  <span class="block text-[11px] text-ink-400">Km / gas inicial</span>
+                  <strong class="text-sm">{{ r.kmInitial || '—' }} km · {{ r.gasInitial || '—' }} L</strong>
+                </div>
+              </div>
+            </div>
+          }
+
+          <!-- ── Tab: Gastos ── -->
+          @if (tab() === 'expenses') {
+            <div class="overflow-hidden rounded-2xl border border-ink-200 bg-white">
+              @if (!r.expenses.length) {
+                <p class="px-5 py-8 text-center text-sm text-ink-500">Sin gastos registrados por el operador.</p>
+              } @else {
+                <div class="overflow-x-auto">
+                  <table class="w-full border-collapse text-sm">
+                    <thead>
+                      <tr class="text-left text-[11px] font-medium text-ink-400">
+                        <th class="px-5 py-2.5">Concepto</th>
+                        <th class="px-3 py-2.5">Pago</th>
+                        <th class="px-3 py-2.5 text-right">Monto</th>
+                        <th class="px-3 py-2.5">Comentario</th>
+                        <th class="px-3 py-2.5">Comprobante</th>
+                        <th class="px-3 py-2.5">Estado</th>
+                        <th class="px-5 py-2.5"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (x of r.expenses; track x.id) {
+                        <tr class="border-t border-ink-100">
+                          <td class="px-5 py-2.5 font-semibold">{{ x.concept }}</td>
+                          <td class="px-3 py-2.5">{{ x.paymentType }}</td>
+                          <td class="px-3 py-2.5 text-right tabular-nums">{{ money(x.amount) }}</td>
+                          <td class="px-3 py-2.5 text-ink-500">{{ x.comment || '—' }}</td>
+                          <td class="px-3 py-2.5">
+                            <img class="h-11 w-11 cursor-pointer rounded-lg border border-ink-200 object-cover" [src]="x.imageUrl" (click)="lightbox.set(x.imageUrl)" alt="" />
+                          </td>
+                          <td class="px-3 py-2.5">
+                            <span class="rounded-md px-2 py-1 text-[11px] font-bold" [class]="tonePill(x.status === 'DONE' ? 'ok' : 'warn')">
+                              {{ x.status === 'DONE' ? 'Pagado' : 'Pendiente' }}
+                            </span>
+                          </td>
+                          <td class="px-5 py-2.5 text-right">
+                            @if (x.status !== 'DONE' && auth.canDispatch()) {
+                              <button type="button" class="rounded-lg border border-ink-200 px-2.5 py-1.5 text-xs font-semibold text-ink-700 hover:bg-ink-50" (click)="expenseDone(x.id)">Marcar pagado</button>
+                            }
+                          </td>
+                        </tr>
+                      }
+                    </tbody>
+                    <tfoot>
+                      <tr class="border-t border-ink-200 bg-ink-50">
+                        <td class="px-5 py-2.5 font-bold" colspan="2">Total</td>
+                        <td class="px-3 py-2.5 text-right font-bold tabular-nums" colspan="5">{{ money(expensesTotal(r)) }}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              }
+            </div>
+          }
+
+          <!-- ── Tab: Incidencias ── -->
+          @if (tab() === 'incidents') {
+            <div class="flex flex-col gap-3">
+              @if (!r.incidents.length) {
+                <div class="rounded-2xl border border-ink-200 bg-white px-5 py-8 text-center text-sm text-ink-500">Sin incidencias en esta ruta.</div>
+              }
+              @for (i of r.incidents; track i.id) {
+                <div class="rounded-2xl border border-ink-200 bg-white p-5">
+                  <div class="mb-2 flex flex-wrap items-center gap-2">
+                    <span class="rounded-md bg-danger-bg px-2 py-1 text-[11px] font-bold text-danger">{{ INCIDENT_LABEL[i.reason] }}</span>
+                    <span class="text-xs text-ink-400">{{ dateTime(i.createdAt) }}</span>
+                    @if (i.lat) {
+                      <span class="text-xs text-ink-400">{{ i.lat | number: '1.4-4' }}, {{ i.lng | number: '1.4-4' }}</span>
+                    }
+                  </div>
+                  @if (i.comment) { <p class="text-sm text-ink-700">{{ i.comment }}</p> }
+                  @if (i.photos.length) {
+                    <div class="mt-3 flex flex-wrap gap-2">
+                      @for (p of i.photos; track p) {
+                        <img class="h-16 w-16 cursor-pointer rounded-lg border border-ink-200 object-cover" [src]="p" (click)="lightbox.set(p)" alt="" />
                       }
                     </div>
                   }
                 </div>
-                <div class="stop-right">
-                  <span [class]="'badge badge-' + EVENT_BADGE[e.status]">{{ EVENT_LABEL[e.status] }}</span>
-                  @if (e.deliverStatus !== 'PENDING') {
-                    <span [class]="'badge badge-' + DELIVER_BADGE[e.deliverStatus]">{{ DELIVER_LABEL[e.deliverStatus] }}</span>
-                  }
-                  @if (e.completedAt) { <span class="muted small">{{ time(e.completedAt) }}</span> }
-                  <div class="stop-actions">
-                    @if (!e.approved && e.evidences.length && auth.canDispatch()) {
-                      <button class="btn btn-primary btn-sm" (click)="approveEvent(e)" title="Aprobar evidencia"><app-icon name="check" [size]="14" /> Aprobar</button>
-                    }
-                    @if (e.status === 'COMPLETED' && !isTerminal(r) && auth.isAdmin()) {
-                      <button class="icon-btn" (click)="retryEvent(e)" title="Reintento"><app-icon name="edit" [size]="15" /></button>
-                    }
-                    @if (canNotifyClient(r) && e.stop.phoneNotification && e.status !== 'COMPLETED') {
-                      <button class="icon-btn" (click)="notifyClient(e)" title="Notificar cliente (SMS)"><app-icon name="sms" [size]="15" /></button>
-                    }
-                    @if (e.status !== 'COMPLETED' && !isTerminal(r) && auth.canDispatch()) {
-                      <select class="select select-xs" [ngModel]="e.priority" (ngModelChange)="setPriority(e, $event)" title="Prioridad">
-                        <option value="URGENT">Urgente</option>
-                        <option value="NORMAL">Normal</option>
-                        <option value="NOTURGENT">No urgente</option>
-                      </select>
-                    }
-                  </div>
-                </div>
-              </li>
-            }
-          </ol>
-        </div>
-      }
-
-      <!-- ── Tab: Checklist ── -->
-      @if (tab() === 'checklist') {
-        <div class="card card-pad">
-          @if (!r.checklist.length) {
-            <p class="muted">Esta ruta no tiene checklist (el cliente no define ítems).</p>
-          } @else {
-            <ul class="checklist">
-              @for (c of r.checklist; track c.id) {
-                <li>
-                  <span class="chk" [class.done]="c.done">@if (c.done) { <app-icon name="check" [size]="14" /> }</span>
-                  <span class="chk-label">{{ c.label }} @if (c.required) { <em class="req">*</em> }</span>
-                  @if (c.photo) {
-                    @if (c.photoUrl) {
-                      <img class="thumb" [src]="c.photoUrl" (click)="lightbox.set(c.photoUrl!)" alt="" />
-                    } @else {
-                      <span class="badge badge-warn"><app-icon name="camera" [size]="12" /> Sin foto</span>
-                    }
-                  }
-                  @if (c.required && !c.done) { <span class="badge badge-danger">Pendiente</span> }
-                </li>
-              }
-            </ul>
-            <p class="muted small">* Obligatorio. Un obligatorio con foto se cumple solo con evidencia (RN-CHK-03).</p>
-          }
-          <div class="kv">
-            <div><span class="muted">GPS de salida</span><strong>{{ r.startLat ? (r.startLat | number:'1.4-4') + ', ' + (r.startLng | number:'1.4-4') : 'No capturado' }}</strong></div>
-            <div><span class="muted">Km / gas inicial</span><strong>{{ r.kmInitial || '—' }} km · {{ r.gasInitial || '—' }} L</strong></div>
-          </div>
-        </div>
-      }
-
-      <!-- ── Tab: Gastos ── -->
-      @if (tab() === 'expenses') {
-        <div class="card">
-          @if (!r.expenses.length) {
-            <p class="muted empty">Sin gastos registrados por el operador.</p>
-          } @else {
-            <table class="table">
-              <thead><tr><th>Concepto</th><th>Pago</th><th>Monto</th><th>Comentario</th><th>Comprobante</th><th>Estado</th><th></th></tr></thead>
-              <tbody>
-                @for (x of r.expenses; track x.id) {
-                  <tr>
-                    <td><strong>{{ x.concept }}</strong></td>
-                    <td>{{ x.paymentType }}</td>
-                    <td>{{ money(x.amount) }}</td>
-                    <td class="muted">{{ x.comment || '—' }}</td>
-                    <td><img class="thumb" [src]="x.imageUrl" (click)="lightbox.set(x.imageUrl)" alt="" /></td>
-                    <td><span [class]="'badge badge-' + (x.status === 'DONE' ? 'ok' : 'warn')">{{ x.status === 'DONE' ? 'Pagado' : 'Pendiente' }}</span></td>
-                    <td>@if (x.status !== 'DONE' && auth.canDispatch()) { <button class="btn btn-ghost btn-sm" (click)="expenseDone(x.id)">Marcar pagado</button> }</td>
-                  </tr>
-                }
-              </tbody>
-              <tfoot><tr><td colspan="2"><strong>Total</strong></td><td colspan="5"><strong>{{ money(expensesTotal(r)) }}</strong></td></tr></tfoot>
-            </table>
-          }
-        </div>
-      }
-
-      <!-- ── Tab: Incidencias ── -->
-      @if (tab() === 'incidents') {
-        <div class="incidents">
-          @if (!r.incidents.length) {
-            <div class="card"><p class="muted empty">Sin incidencias en esta ruta.</p></div>
-          }
-          @for (i of r.incidents; track i.id) {
-            <div class="card card-pad incident">
-              <div class="inc-head">
-                <span class="badge badge-danger">{{ INCIDENT_LABEL[i.reason] }}</span>
-                <span class="muted small">{{ dateTime(i.createdAt) }}</span>
-                @if (i.lat) { <span class="muted small">{{ i.lat | number:'1.4-4' }}, {{ i.lng | number:'1.4-4' }}</span> }
-              </div>
-              @if (i.comment) { <p>{{ i.comment }}</p> }
-              @if (i.photos.length) {
-                <div class="thumbs">
-                  @for (p of i.photos; track p) { <img class="thumb" [src]="p" (click)="lightbox.set(p)" alt="" /> }
-                </div>
               }
             </div>
           }
         </div>
       }
     }
-    }
-    </div>
   </section>
-
-  <!-- ═══════════ Panel 3: mapa (desplegable) ═══════════ -->
-  <aside class="panel map-panel">
-    <div class="panel-rail right" (click)="mapOpen.set(true)" title="Mostrar mapa">
-      <app-icon name="map" [size]="20" />
-    </div>
-    <div class="panel-inner">
-      <header class="panel-head">
-        <h3>Mapa</h3>
-        <button class="icon-btn" (click)="mapOpen.set(false)" title="Ocultar mapa"><app-icon name="chevron" [size]="18" /></button>
-      </header>
-      <div class="map-box">
-        <app-route-map [points]="mapPoints()" />
-      </div>
-      @if (detail(); as r) {
-        <div class="legend">
-          <span><i class="dot brand"></i> Pendiente</span>
-          <span><i class="dot ok"></i> Atendida</span>
-          <span><i class="dot danger"></i> Con problema</span>
-          @if (isTrackable(r)) { <a routerLink="/app/tracking" [queryParams]="{ route: r.id }">Ver en vivo →</a> }
-        </div>
-      }
-    </div>
-  </aside>
 </div>
 
 <!-- ─── Toast ─── -->
 @if (toast(); as t) {
-  <div class="toast" [class.err]="t.kind === 'err'">{{ t.text }}</div>
+  <div
+    class="fixed bottom-6 left-1/2 z-[100] -translate-x-1/2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white shadow-[0_20px_45px_rgba(15,23,42,0.25)]"
+    [class.bg-ink-900]="t.kind === 'ok'"
+    [class.bg-danger]="t.kind === 'err'"
+  >
+    {{ t.text }}
+  </div>
 }
 
 <!-- ─── Lightbox ─── -->
 @if (lightbox(); as url) {
-  <div class="modal-bg" (click)="lightbox.set(null)">
-    <img class="lightbox" [src]="url" alt="" />
+  <div class="fixed inset-0 z-[90] grid place-items-center bg-ink-900/70 p-6" (click)="lightbox.set(null)">
+    <img class="max-h-[85vh] max-w-[90vw] rounded-xl" [src]="url" alt="" />
   </div>
 }
 
 <!-- ─── Modal duplicar ─── -->
 @if (dupOpen()) {
-  <div class="modal-bg" (click)="dupOpen.set(false)">
-    <div class="modal card card-pad" (click)="$event.stopPropagation()">
-      <h3>Duplicar ruta</h3>
-      <p class="muted">Se crea una copia “(Copia)” para hoy sin evidencias ni avance. Elige operador y unidad (deben estar libres).</p>
-      <label class="field">Operador
-        <select class="select" [(ngModel)]="dupDriverId">
-          @for (d of drivers(); track d.id) { <option [value]="d.id" [disabled]="d.status !== 'AVAILABLE'">{{ d.name }} @if (d.status !== 'AVAILABLE') { (ocupado) }</option> }
+  <div class="fixed inset-0 z-[90] grid place-items-center bg-ink-900/50 p-6" (click)="dupOpen.set(false)">
+    <div class="w-full max-w-md rounded-2xl border border-ink-200 bg-white p-5 shadow-[0_20px_45px_rgba(15,23,42,0.25)]" (click)="$event.stopPropagation()">
+      <h3 class="text-base font-bold">Duplicar ruta</h3>
+      <p class="mt-1 text-sm text-ink-500">Se crea una copia “(Copia)” para hoy sin evidencias ni avance. Elige operador y unidad (deben estar libres).</p>
+      <label class="mt-4 flex flex-col gap-1.5 text-xs font-semibold text-ink-700">
+        Operador
+        <select class="rounded-lg border border-ink-200 px-2.5 py-2 text-sm font-normal text-ink-900" [(ngModel)]="dupDriverId">
+          @for (d of drivers(); track d.id) {
+            <option [value]="d.id" [disabled]="d.status !== 'AVAILABLE'">{{ d.name }} @if (d.status !== 'AVAILABLE') { (ocupado) }</option>
+          }
         </select>
       </label>
-      <label class="field">Unidad
-        <select class="select" [(ngModel)]="dupVehicleId">
-          @for (v of vehicles(); track v.id) { <option [value]="v.id" [disabled]="v.status !== 'AVAILABLE'">{{ v.plate }} @if (v.status !== 'AVAILABLE') { (ocupada) }</option> }
+      <label class="mt-3 flex flex-col gap-1.5 text-xs font-semibold text-ink-700">
+        Unidad
+        <select class="rounded-lg border border-ink-200 px-2.5 py-2 text-sm font-normal text-ink-900" [(ngModel)]="dupVehicleId">
+          @for (v of vehicles(); track v.id) {
+            <option [value]="v.id" [disabled]="v.status !== 'AVAILABLE'">{{ v.plate }} @if (v.status !== 'AVAILABLE') { (ocupada) }</option>
+          }
         </select>
       </label>
-      <div class="modal-actions">
-        <button class="btn btn-ghost" (click)="dupOpen.set(false)">Cancelar</button>
-        <button class="btn btn-primary" (click)="duplicate()">Duplicar</button>
+      <div class="mt-5 flex justify-end gap-2">
+        <button type="button" class="rounded-lg border border-ink-200 px-3 py-2 text-sm font-semibold text-ink-700 hover:bg-ink-50" (click)="dupOpen.set(false)">Cancelar</button>
+        <button type="button" class="rounded-lg bg-brand-600 px-3 py-2 text-sm font-semibold text-white hover:bg-brand-700" (click)="duplicate()">Duplicar</button>
       </div>
     </div>
   </div>
@@ -423,14 +696,17 @@
 
 <!-- ─── Modal cancelar ─── -->
 @if (cancelOpen()) {
-  <div class="modal-bg" (click)="cancelOpen.set(false)">
-    <div class="modal card card-pad" (click)="$event.stopPropagation()">
-      <h3>Cancelar ruta</h3>
-      <p class="muted">La ruta deja de ser editable y libera operador y unidad.</p>
-      <label class="field">Motivo (opcional)<textarea class="input" rows="3" [(ngModel)]="cancelReason"></textarea></label>
-      <div class="modal-actions">
-        <button class="btn btn-ghost" (click)="cancelOpen.set(false)">Volver</button>
-        <button class="btn btn-danger" (click)="cancel()">Cancelar ruta</button>
+  <div class="fixed inset-0 z-[90] grid place-items-center bg-ink-900/50 p-6" (click)="cancelOpen.set(false)">
+    <div class="w-full max-w-md rounded-2xl border border-ink-200 bg-white p-5 shadow-[0_20px_45px_rgba(15,23,42,0.25)]" (click)="$event.stopPropagation()">
+      <h3 class="text-base font-bold">Cancelar ruta</h3>
+      <p class="mt-1 text-sm text-ink-500">La ruta deja de ser editable y libera operador y unidad.</p>
+      <label class="mt-4 flex flex-col gap-1.5 text-xs font-semibold text-ink-700">
+        Motivo (opcional)
+        <textarea class="rounded-lg border border-ink-200 px-2.5 py-2 text-sm font-normal text-ink-900" rows="3" [(ngModel)]="cancelReason"></textarea>
+      </label>
+      <div class="mt-5 flex justify-end gap-2">
+        <button type="button" class="rounded-lg border border-ink-200 px-3 py-2 text-sm font-semibold text-ink-700 hover:bg-ink-50" (click)="cancelOpen.set(false)">Volver</button>
+        <button type="button" class="rounded-lg bg-danger px-3 py-2 text-sm font-semibold text-white" (click)="cancel()">Cancelar ruta</button>
       </div>
     </div>
   </div>

@@ -1,21 +1,9 @@
-import {
-  Component,
-  ElementRef,
-  OnDestroy,
-  OnInit,
-  ViewChild,
-  computed,
-  effect,
-  inject,
-  signal,
-} from '@angular/core';
+import { Component, OnInit, computed, effect, inject, signal } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import mapboxgl from 'mapbox-gl';
 import { ApiService } from '../../core/api.service';
 import { AuthService } from '../../core/auth.service';
-import { MapService } from '../../core/map.service';
 import {
   Driver,
   EnterpriseSettings,
@@ -53,14 +41,11 @@ const PANELS_KEY = 'fastroute_routes_panels';
   templateUrl: './routes-workspace.component.html',
   styleUrl: './routes-workspace.component.scss',
 })
-export class RoutesWorkspaceComponent implements OnInit, OnDestroy {
+export class RoutesWorkspaceComponent implements OnInit {
   private api = inject(ApiService);
-  private maps = inject(MapService);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   readonly auth = inject(AuthService);
-
-  @ViewChild('mapEl') mapEl?: ElementRef<HTMLDivElement>;
 
   // ── paneles desplegables ──
   listOpen = signal(true);
@@ -92,9 +77,8 @@ export class RoutesWorkspaceComponent implements OnInit, OnDestroy {
   cancelReason = '';
   lightbox = signal<string | null>(null);
 
-  useMapbox = signal(false);
-  private map?: mapboxgl.Map;
-  private markers: mapboxgl.Marker[] = [];
+  /** Paradas desplegadas en la línea de tiempo. */
+  expanded = signal<Record<string, boolean>>({});
 
   readonly ROUTE_LABEL = ROUTE_LABEL;
   readonly ROUTE_BADGE = ROUTE_BADGE;
@@ -158,17 +142,9 @@ export class RoutesWorkspaceComponent implements OnInit, OnDestroy {
     this.listOpen.set(saved.list);
     this.mapOpen.set(saved.map);
     effect(() => localStorage.setItem(PANELS_KEY, JSON.stringify({ list: this.listOpen(), map: this.mapOpen() })));
-    effect(() => {
-      // Redibuja el mapa cuando cambia el detalle o se abre el panel.
-      const d = this.detail();
-      const open = this.mapOpen();
-      if (d && open && this.useMapbox()) setTimeout(() => this.renderMap(), 60);
-    });
   }
 
-  async ngOnInit() {
-    await this.maps.ensureConfig();
-    this.useMapbox.set(this.maps.hasToken);
+  ngOnInit() {
     this.api.today().subscribe((t) => {
       this.day.set(t.day);
       this.loadList();
@@ -181,10 +157,6 @@ export class RoutesWorkspaceComponent implements OnInit, OnDestroy {
       else this.detail.set(null);
     });
     if (this.route.snapshot.queryParamMap.get('approvals')) this.filter.set('APPROVALS');
-  }
-
-  ngOnDestroy() {
-    this.map?.remove();
   }
 
   // ─────────── lista ───────────
@@ -389,6 +361,90 @@ export class RoutesWorkspaceComponent implements OnInit, OnDestroy {
     });
   }
 
+  // ─────────── línea de tiempo de paradas ───────────
+  toggleStop(id: string) {
+    this.expanded.update((m) => ({ ...m, [id]: !m[id] }));
+  }
+  isStopOpen(id: string): boolean {
+    return !!this.expanded()[id];
+  }
+
+  /** Paradas ordenadas por posición (origen → destino). */
+  orderedEvents(r: RouteDetail): RouteEvent[] {
+    return [...r.events].sort((a, b) => a.position - b.position);
+  }
+
+  originOf(r: RouteSummary): string {
+    return this.edgeStop(r, 'first');
+  }
+  destinationOf(r: RouteSummary): string {
+    return this.edgeStop(r, 'last');
+  }
+  private edgeStop(r: RouteSummary, which: 'first' | 'last'): string {
+    const evs = (r.events ?? []).filter((e) => e.stop);
+    if (!evs.length) return '—';
+    const sorted = [...evs].sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+    const e = which === 'first' ? sorted[0] : sorted[sorted.length - 1];
+    return e.stop?.label ?? '—';
+  }
+
+  /** Color sólido para iconos y puntos de la línea de tiempo. */
+  toneDot(kind: string): string {
+    switch (kind) {
+      case 'ok':
+        return 'bg-ok';
+      case 'info':
+        return 'bg-info';
+      case 'warn':
+        return 'bg-warn';
+      case 'danger':
+        return 'bg-danger';
+      default:
+        return 'bg-ink-400';
+    }
+  }
+
+  /** Texto de estado en color (estilo "Delivered" / "Provider Cancelled"). */
+  toneText(kind: string): string {
+    switch (kind) {
+      case 'ok':
+        return 'text-ok';
+      case 'info':
+        return 'text-info';
+      case 'warn':
+        return 'text-warn';
+      case 'danger':
+        return 'text-danger';
+      default:
+        return 'text-ink-500';
+    }
+  }
+
+  /** Pill suave con fondo. */
+  tonePill(kind: string): string {
+    switch (kind) {
+      case 'ok':
+        return 'bg-ok-bg text-ok';
+      case 'info':
+        return 'bg-info-bg text-info';
+      case 'warn':
+        return 'bg-warn-bg text-warn';
+      case 'danger':
+        return 'bg-danger-bg text-danger';
+      default:
+        return 'bg-ink-100 text-ink-700';
+    }
+  }
+
+  initials(name?: string | null): string {
+    return (name ?? '?')
+      .split(' ')
+      .slice(0, 2)
+      .map((p) => p[0])
+      .join('')
+      .toUpperCase();
+  }
+
   // ─────────── helpers ───────────
   toggleMap() {
     this.mapOpen.update((v) => !v);
@@ -474,49 +530,4 @@ export class RoutesWorkspaceComponent implements OnInit, OnDestroy {
     }
   }
 
-  private renderMap() {
-    const r = this.detail();
-    if (!r || !this.mapEl) return;
-    const stops = r.events.map((e) => e.stop);
-    if (!stops.length) return;
-
-    if (!this.map) {
-      this.map = this.maps.createMap(this.mapEl.nativeElement, [stops[0].lng, stops[0].lat]);
-      this.map.on('load', () => this.drawRoute(r));
-    } else {
-      this.drawRoute(r);
-    }
-  }
-
-  private drawRoute(r: RouteDetail) {
-    if (!this.map) return;
-    const map = this.map;
-    const stops = r.events.map((e) => e.stop);
-    const coords = stops.map((s) => [s.lng, s.lat]);
-    const data = {
-      type: 'Feature' as const,
-      properties: {},
-      geometry: { type: 'LineString' as const, coordinates: coords },
-    };
-    const src = map.getSource('route') as mapboxgl.GeoJSONSource | undefined;
-    if (src) {
-      src.setData(data);
-    } else {
-      map.addSource('route', { type: 'geojson', data });
-      map.addLayer({ id: 'route', type: 'line', source: 'route', paint: { 'line-color': '#4f46e5', 'line-width': 4 } });
-    }
-    this.markers.forEach((m) => m.remove());
-    this.markers = r.events.map((e, i) => {
-      const color = e.status === 'COMPLETED' ? '#059669' : e.status === 'ISSUE' ? '#dc2626' : '#4f46e5';
-      // RN-MAP-03: la posición de una entrega es la coordenada capturada al enviar evidencia.
-      const lng = e.evLng ?? e.stop.lng;
-      const lat = e.evLat ?? e.stop.lat;
-      return new mapboxgl.Marker({ element: this.maps.numberedMarker(i + 1, color) })
-        .setLngLat([lng, lat])
-        .setPopup(new mapboxgl.Popup().setText(e.stop.label))
-        .addTo(map);
-    });
-    this.maps.fitToStops(map, stops);
-    setTimeout(() => map.resize(), 50);
-  }
 }
