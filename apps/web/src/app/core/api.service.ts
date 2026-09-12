@@ -1,20 +1,38 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import {
   ChecklistItem,
   Client,
   ClientConfig,
+  DashboardSeries,
+  DeliverStatus,
   Driver,
   Enterprise,
+  EnterpriseSettings,
+  EnterpriseUser,
+  Incident,
+  IncidentReason,
   Kpis,
+  OperationsReport,
   RouteDetail,
   RouteStatus,
   RouteSummary,
+  RouteTemplate,
   Stop,
+  StopsReport,
+  UserRole,
   Vehicle,
 } from './models';
 
 const BASE = '/api/v1';
+
+function params(obj: Record<string, string | number | boolean | undefined | null>): HttpParams {
+  let p = new HttpParams();
+  for (const [k, v] of Object.entries(obj)) {
+    if (v !== undefined && v !== null && v !== '') p = p.set(k, String(v));
+  }
+  return p;
+}
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
@@ -23,6 +41,9 @@ export class ApiService {
   // Config
   clientConfig() {
     return this.http.get<ClientConfig>(`${BASE}/config/client`);
+  }
+  today() {
+    return this.http.get<{ day: string; tz: string }>(`${BASE}/routes/today`);
   }
 
   // Super admin
@@ -38,16 +59,49 @@ export class ApiService {
   setEnterpriseActive(id: string, isActive: boolean) {
     return this.http.patch(`${BASE}/super/enterprises/${id}/active`, { isActive });
   }
+  superSettings(id: string) {
+    return this.http.get<EnterpriseSettings>(`${BASE}/super/enterprises/${id}/settings`);
+  }
+  updateSuperSettings(id: string, body: Partial<EnterpriseSettings>) {
+    return this.http.patch<EnterpriseSettings>(`${BASE}/super/enterprises/${id}/settings`, body);
+  }
+
+  // Settings (empresa activa)
+  settings() {
+    return this.http.get<EnterpriseSettings>(`${BASE}/settings`);
+  }
+  updateSettings(body: Partial<EnterpriseSettings>) {
+    return this.http.patch<EnterpriseSettings>(`${BASE}/settings`, body);
+  }
+
+  // Users
+  users() {
+    return this.http.get<EnterpriseUser[]>(`${BASE}/users`);
+  }
+  createUser(body: { email: string; name: string; password: string; role: UserRole; driverId?: string; phone?: string }) {
+    return this.http.post<EnterpriseUser>(`${BASE}/users`, body);
+  }
+  updateUser(id: string, body: { name?: string; role?: UserRole; isActive?: boolean; password?: string }) {
+    return this.http.patch<EnterpriseUser>(`${BASE}/users/${id}`, body);
+  }
+  deleteUser(id: string) {
+    return this.http.delete(`${BASE}/users/${id}`);
+  }
 
   // Dashboard
-  kpis() {
-    return this.http.get<Kpis>(`${BASE}/routes/kpis`);
+  kpis(day?: string) {
+    return this.http.get<Kpis>(`${BASE}/routes/kpis`, { params: params({ day }) });
+  }
+
+  series(days = 14) {
+    return this.http.get<DashboardSeries>(`${BASE}/routes/series`, { params: params({ days }) });
   }
 
   // Routes
-  routes(status?: RouteStatus) {
-    const q = status ? `?status=${status}` : '';
-    return this.http.get<RouteSummary[]>(`${BASE}/routes${q}`);
+  routes(opts: { status?: RouteStatus; day?: string; all?: boolean } = {}) {
+    return this.http.get<RouteSummary[]>(`${BASE}/routes`, {
+      params: params({ status: opts.status, day: opts.day, all: opts.all ? 1 : undefined }),
+    });
   }
   route(id: string) {
     return this.http.get<RouteDetail>(`${BASE}/routes/${id}`);
@@ -57,15 +111,75 @@ export class ApiService {
     driverId?: string;
     vehicleId?: string;
     clientId?: string;
-    stopIds: string[];
+    templateId?: string;
+    dateStart?: string;
+    stopIds?: string[];
   }) {
     return this.http.post<RouteDetail>(`${BASE}/routes`, body);
+  }
+  duplicateRoute(id: string, body: { driverId?: string; vehicleId?: string; dateStart?: string }) {
+    return this.http.post<RouteDetail>(`${BASE}/routes/${id}/duplicate`, body);
   }
   changeRouteStatus(id: string, status: RouteStatus) {
     return this.http.patch<RouteDetail>(`${BASE}/routes/${id}/status`, { status });
   }
+  cancelRoute(id: string, reason?: string) {
+    return this.http.post<RouteDetail>(`${BASE}/routes/${id}/cancel`, { reason });
+  }
+  approveChecklist(id: string) {
+    return this.http.post<RouteDetail>(`${BASE}/routes/${id}/approve-checklist`, {});
+  }
+  approveEvent(routeId: string, eventId: string) {
+    return this.http.post<RouteDetail>(`${BASE}/routes/${routeId}/events/${eventId}/approve`, {});
+  }
+  retryEvent(routeId: string, eventId: string) {
+    return this.http.post<RouteDetail>(`${BASE}/routes/${routeId}/events/${eventId}/retry`, {});
+  }
+  updateEvent(routeId: string, eventId: string, body: { priority?: string; status?: string }) {
+    return this.http.patch<RouteDetail>(`${BASE}/routes/${routeId}/events/${eventId}`, body);
+  }
+  reorderRoute(id: string, eventIds: string[]) {
+    return this.http.patch<RouteDetail>(`${BASE}/routes/${id}/reorder`, { eventIds });
+  }
+  notifyDriver(id: string, message?: string) {
+    return this.http.post<{ ok: boolean; link: string }>(`${BASE}/routes/${id}/notify-driver`, { message });
+  }
+  notifyClient(routeId: string, eventId: string) {
+    return this.http.post<{ ok: boolean; link: string; to: string; message: string }>(
+      `${BASE}/routes/${routeId}/events/${eventId}/notify-client`,
+      {},
+    );
+  }
+  expenseDone(routeId: string, expenseId: string) {
+    return this.http.post<RouteDetail>(`${BASE}/routes/${routeId}/expenses/${expenseId}/done`, {});
+  }
+  incidents(day?: string) {
+    return this.http.get<Incident[]>(`${BASE}/routes/incidents`, { params: params({ day }) });
+  }
   deleteRoute(id: string) {
     return this.http.delete(`${BASE}/routes/${id}`);
+  }
+
+  // Templates
+  templates() {
+    return this.http.get<RouteTemplate[]>(`${BASE}/templates`);
+  }
+  createTemplate(body: { name: string; clientId?: string; stopIds: string[] }) {
+    return this.http.post<RouteTemplate>(`${BASE}/templates`, body);
+  }
+  updateTemplate(id: string, body: { name: string; clientId?: string; stopIds: string[] }) {
+    return this.http.patch<RouteTemplate>(`${BASE}/templates/${id}`, body);
+  }
+  deleteTemplate(id: string) {
+    return this.http.delete(`${BASE}/templates/${id}`);
+  }
+
+  // Reports
+  reportStops(from?: string, to?: string) {
+    return this.http.get<StopsReport>(`${BASE}/reports/stops`, { params: params({ from, to }) });
+  }
+  reportOperations(from?: string, to?: string) {
+    return this.http.get<OperationsReport>(`${BASE}/reports/operations`, { params: params({ from, to }) });
   }
 
   // Drivers
@@ -107,6 +221,7 @@ export class ApiService {
     name: string;
     contactName?: string;
     contactPhone?: string;
+    pickupMinutes?: number;
     deliverMinutes?: number;
     checklistItems?: ChecklistItem[];
   }) {
@@ -117,14 +232,20 @@ export class ApiService {
   }
 
   // Stops
-  stops(clientId?: string) {
-    const q = clientId ? `?clientId=${clientId}` : '';
-    return this.http.get<Stop[]>(`${BASE}/stops${q}`);
+  stops(opts: { clientId?: string; includeArchived?: boolean } = {}) {
+    return this.http.get<Stop[]>(`${BASE}/stops`, {
+      params: params({ clientId: opts.clientId, includeArchived: opts.includeArchived ? 1 : undefined }),
+    });
   }
   createStop(body: Partial<Stop>) {
     return this.http.post<Stop>(`${BASE}/stops`, body);
+  }
+  updateStop(id: string, body: Partial<Stop>) {
+    return this.http.patch<Stop>(`${BASE}/stops/${id}`, body);
   }
   deleteStop(id: string) {
     return this.http.delete(`${BASE}/stops/${id}`);
   }
 }
+
+export type { DeliverStatus, IncidentReason };

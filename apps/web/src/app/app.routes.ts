@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { authGuard, superGuard } from './core/guards';
+import { adminGuard, authGuard, superGuard } from './core/guards';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'login', pathMatch: 'full' },
@@ -24,20 +24,34 @@ export const routes: Routes = [
         loadComponent: () => import('./pages/dashboard/dashboard.component').then((m) => m.DashboardComponent),
       },
       {
-        path: 'routes',
-        loadComponent: () => import('./pages/routes/routes-list.component').then((m) => m.RoutesListComponent),
-      },
-      {
         path: 'routes/new',
         loadComponent: () => import('./pages/routes/route-create.component').then((m) => m.RouteCreateComponent),
       },
       {
+        path: 'routes',
+        loadComponent: () =>
+          import('./pages/routes/routes-workspace.component').then((m) => m.RoutesWorkspaceComponent),
+      },
+      {
         path: 'routes/:id',
-        loadComponent: () => import('./pages/routes/route-detail.component').then((m) => m.RouteDetailComponent),
+        loadComponent: () =>
+          import('./pages/routes/routes-workspace.component').then((m) => m.RoutesWorkspaceComponent),
+      },
+      {
+        path: 'templates',
+        loadComponent: () => import('./pages/templates/templates.component').then((m) => m.TemplatesComponent),
       },
       {
         path: 'tracking',
         loadComponent: () => import('./pages/tracking/tracking.component').then((m) => m.TrackingComponent),
+      },
+      {
+        path: 'reports',
+        loadComponent: () => import('./pages/reports/reports.component').then((m) => m.ReportsComponent),
+      },
+      {
+        path: 'stops',
+        loadComponent: () => import('./pages/stops/stops.component').then((m) => m.StopsComponent),
       },
       {
         path: 'drivers',
@@ -50,6 +64,16 @@ export const routes: Routes = [
       {
         path: 'clients',
         loadComponent: () => import('./pages/clients/clients.component').then((m) => m.ClientsComponent),
+      },
+      {
+        path: 'users',
+        canActivate: [adminGuard],
+        loadComponent: () => import('./pages/users/users.component').then((m) => m.UsersComponent),
+      },
+      {
+        path: 'settings',
+        canActivate: [adminGuard],
+        loadComponent: () => import('./pages/settings/settings.component').then((m) => m.SettingsComponent),
       },
     ],
   },

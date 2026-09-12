@@ -12,6 +12,10 @@ import { ClientsModule } from './clients/clients.module';
 import { StopsModule } from './stops/stops.module';
 import { RoutesModule } from './routes/routes.module';
 import { ConfigController } from './config/config.controller';
+import { SettingsModule } from './settings/settings.module';
+import { TemplatesModule } from './templates/templates.module';
+import { UsersModule } from './users/users.module';
+import { ReportsModule } from './reports/reports.module';
 
 @Module({
   imports: [
@@ -28,6 +32,10 @@ import { ConfigController } from './config/config.controller';
     ClientsModule,
     StopsModule,
     RoutesModule,
+    SettingsModule,
+    TemplatesModule,
+    UsersModule,
+    ReportsModule,
   ],
   controllers: [AppController, ConfigController],
   providers: [AppService],

@@ -1,0 +1,109 @@
+<app-page-header title="Paradas" subtitle="Catálogo de direcciones y puntos de visita">
+  <button class="btn btn-ghost" (click)="toggleArchived()">
+    <app-icon name="archive" [size]="16" /> {{ showArchived() ? 'Ocultar archivadas' : 'Ver archivadas' }}
+  </button>
+  <button class="btn btn-primary" (click)="create()"><app-icon name="plus" [size]="18" /> Nueva parada</button>
+</app-page-header>
+
+<div class="toolbar">
+  <div class="search">
+    <app-icon name="search" [size]="16" />
+    <input class="input" placeholder="Buscar por nombre, dirección, cliente o tag…" [ngModel]="query()" (ngModelChange)="query.set($event)" />
+  </div>
+  <div class="chips">
+    <button class="chip" [class.on]="typeFilter() === 'ALL'" (click)="typeFilter.set('ALL')">Todas</button>
+    @for (t of types; track t) {
+      <button class="chip" [class.on]="typeFilter() === t" (click)="typeFilter.set(t)">{{ STOP_TYPE_LABEL[t] }}</button>
+    }
+  </div>
+</div>
+
+<div class="card">
+  @if (!visible().length) {
+    <p class="muted empty">No hay paradas en este filtro.</p>
+  } @else {
+    <table class="table">
+      <thead>
+        <tr><th>Parada</th><th>Tipo</th><th>Cliente</th><th>Tag</th><th>Tel. aviso</th><th>Horario</th><th>Uso</th><th></th></tr>
+      </thead>
+      <tbody>
+        @for (s of visible(); track s.id) {
+          <tr [class.archived]="s.isArchived">
+            <td>
+              <div class="stop-cell">
+                <strong>{{ s.label }} @if (s.isMain) { <span class="badge badge-info">Principal</span> } @if (s.isArchived) { <span class="badge badge-muted">Archivada</span> }</strong>
+                <span class="muted">{{ s.address }}</span>
+                <span class="muted tiny">{{ s.lat }}, {{ s.lng }}</span>
+              </div>
+            </td>
+            <td>{{ STOP_TYPE_LABEL[s.type] }}</td>
+            <td>{{ s.client?.name || '—' }}</td>
+            <td>@if (s.tag) { <span class="tag" [style.background]="s.tagColor || '#6366f1'">{{ s.tag }}</span> } @else { — }</td>
+            <td>{{ s.phoneNotification || '—' }}</td>
+            <td>{{ s.schedule || '—' }}</td>
+            <td class="muted">{{ s._count?.events || 0 }} visitas</td>
+            <td class="actions">
+              <button class="icon-btn" (click)="edit(s)" title="Editar"><app-icon name="edit" [size]="16" /></button>
+              @if (s.isArchived) {
+                <button class="icon-btn" (click)="restore(s)" title="Restaurar"><app-icon name="check" [size]="16" /></button>
+              } @else {
+                <button class="icon-btn danger" (click)="archive(s)" title="Archivar / eliminar"><app-icon name="archive" [size]="16" /></button>
+              }
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+</div>
+
+<!-- Drawer lateral de edición -->
+@if (editing(); as e) {
+  <div class="drawer-bg" (click)="editing.set(null)"></div>
+  <aside class="drawer">
+    <header>
+      <h3>{{ e.id ? 'Editar parada' : 'Nueva parada' }}</h3>
+      <button class="icon-btn" (click)="editing.set(null)"><app-icon name="x" [size]="18" /></button>
+    </header>
+    <div class="drawer-body">
+      <label class="field">Etiqueta *<input class="input" [(ngModel)]="e.label" placeholder="Ej. Bodega Zapopan" /></label>
+      <label class="field">Dirección *<input class="input" [(ngModel)]="e.address" placeholder="Calle, número, colonia" /></label>
+      <div class="two">
+        <label class="field">Latitud<input class="input" type="number" step="0.000001" [(ngModel)]="e.lat" /></label>
+        <label class="field">Longitud<input class="input" type="number" step="0.000001" [(ngModel)]="e.lng" /></label>
+      </div>
+      <div class="two">
+        <label class="field">Tipo
+          <select class="select" [(ngModel)]="e.type">
+            @for (t of types; track t) { <option [value]="t">{{ STOP_TYPE_LABEL[t] }}</option> }
+          </select>
+        </label>
+        <label class="field">Cliente
+          <select class="select" [(ngModel)]="e.clientId">
+            <option value="">Sin cliente</option>
+            @for (c of clients(); track c.id) { <option [value]="c.id">{{ c.name }}</option> }
+          </select>
+        </label>
+      </div>
+      <label class="check"><input type="checkbox" [(ngModel)]="e.isMain" /> Parada principal (origen/destino de referencia)</label>
+      <div class="two">
+        <label class="field">Tag
+          <select class="select" [ngModel]="e.tag" (ngModelChange)="applyTag($event)">
+            <option value="">Sin tag</option>
+            @for (t of settings()?.stop_tag || []; track t.name) { <option [value]="t.name">{{ t.name }}</option> }
+          </select>
+        </label>
+        <label class="field">Tel. de aviso al cliente<input class="input" [(ngModel)]="e.phoneNotification" placeholder="+52 33 …" /></label>
+      </div>
+      <label class="field">Horario<input class="input" [(ngModel)]="e.schedule" placeholder="Ej. 09:00–13:00" /></label>
+      <label class="field">Referencia<input class="input" [(ngModel)]="e.reference" placeholder="Portón azul, timbre 2" /></label>
+      <label class="field">Comentario interno<textarea class="input" rows="2" [(ngModel)]="e.commentInternal"></textarea></label>
+      <label class="field">Comentario para el operador<textarea class="input" rows="2" [(ngModel)]="e.commentDriver"></textarea></label>
+      @if (error()) { <p class="err">{{ error() }}</p> }
+    </div>
+    <footer>
+      <button class="btn btn-ghost" (click)="editing.set(null)">Cancelar</button>
+      <button class="btn btn-primary" (click)="save()">Guardar</button>
+    </footer>
+  </aside>
+}

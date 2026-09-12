@@ -1,6 +1,6 @@
-<app-page-header title="Vehículos" subtitle="Unidades de tu flota">
+<app-page-header title="Unidades" subtitle="Vehículos de tu flota · una unidad en taller no se despacha">
   <button class="btn btn-primary" (click)="showForm.set(!showForm())">
-    <app-icon name="plus" [size]="18" /> Nuevo vehículo
+    <app-icon name="plus" [size]="18" /> Nueva unidad
   </button>
 </app-page-header>
 
@@ -30,11 +30,15 @@
       </div>
       <div class="entity-foot">
         <span [class]="'badge badge-' + VEHICLE_BADGE[v.status]">{{ VEHICLE_LABEL[v.status] }}</span>
-        <select class="select select-sm" [ngModel]="v.status" (ngModelChange)="setStatus(v, $event)">
-          @for (s of statuses; track s) {
-            <option [value]="s">{{ VEHICLE_LABEL[s] }}</option>
-          }
-        </select>
+        @if (routeDriven(v.status)) {
+          <span class="muted tiny" title="Estado derivado de la ruta activa">en viaje</span>
+        } @else {
+          <select class="select select-sm" [ngModel]="v.status" (ngModelChange)="setStatus(v, $event)">
+            @for (s of statuses; track s) {
+              <option [value]="s">{{ VEHICLE_LABEL[s] }}</option>
+            }
+          </select>
+        }
       </div>
     </div>
   }

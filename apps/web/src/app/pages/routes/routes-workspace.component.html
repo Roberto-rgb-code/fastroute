@@ -1,0 +1,437 @@
+<div class="ws" [class.list-closed]="!listOpen()" [class.detail-closed]="!selectedId()" [class.map-closed]="!mapOpen()">
+  <!-- ═══════════ Panel 1: lista de rutas del día (desplegable) ═══════════ -->
+  <aside class="panel list-panel">
+    <div class="panel-rail" (click)="listOpen.set(true)" title="Mostrar rutas">
+      <app-icon name="route" [size]="20" />
+      <span class="rail-count">{{ routes().length }}</span>
+    </div>
+
+    <div class="panel-inner">
+      <header class="panel-head">
+        <div class="ph-title">
+          <h2>Rutas del día</h2>
+          <span class="muted day">{{ dayLabel() }}</span>
+        </div>
+        <button class="icon-btn" (click)="listOpen.set(false)" title="Ocultar lista">
+          <app-icon name="chevron" [size]="18" class="flip" />
+        </button>
+      </header>
+
+      <div class="day-nav">
+        <button class="icon-btn" (click)="shiftDay(-1)" title="Día anterior"><app-icon name="chevron" [size]="16" class="flip" /></button>
+        <input type="date" class="input input-sm" [ngModel]="day()" (ngModelChange)="onDay($event)" />
+        <button class="icon-btn" (click)="shiftDay(1)" title="Día siguiente"><app-icon name="chevron" [size]="16" /></button>
+        <a class="btn btn-primary btn-sm" routerLink="/app/routes/new" title="Nueva ruta"><app-icon name="plus" [size]="16" /></a>
+      </div>
+
+      <div class="search">
+        <app-icon name="search" [size]="16" />
+        <input class="input input-sm" placeholder="Buscar ruta, operador, placa…" [ngModel]="search()" (ngModelChange)="search.set($event)" />
+      </div>
+
+      <div class="chips">
+        @for (f of filters; track f.key) {
+          <button class="chip" [class.on]="filter() === f.key" (click)="filter.set(f.key)">
+            {{ f.label }}
+            @if (f.key === 'OPEN') { <b>{{ counts().open }}</b> }
+            @if (f.key === 'DONE') { <b>{{ counts().done }}</b> }
+            @if (f.key === 'APPROVALS' && counts().approvals) { <b class="warn">{{ counts().approvals }}</b> }
+          </button>
+        }
+      </div>
+
+      <div class="list">
+        @if (loadingList()) {
+          <p class="muted empty">Cargando…</p>
+        } @else if (!visible().length) {
+          <div class="empty">
+            <app-icon name="route" [size]="34" />
+            <p class="muted">Sin rutas en este filtro.</p>
+            <a routerLink="/app/routes/new" class="btn btn-ghost btn-sm">Crear ruta</a>
+          </div>
+        } @else {
+          @for (r of visible(); track r.id) {
+            <button class="route-card" [class.on]="selectedId() === r.id" (click)="select(r)">
+              <div class="rc-top">
+                <strong>{{ r.name }}</strong>
+                <span [class]="'badge badge-' + ROUTE_BADGE[r.status]">{{ ROUTE_LABEL[r.status] }}</span>
+              </div>
+              <div class="rc-meta muted">
+                <span><app-icon name="driver" [size]="13" /> {{ r.driver?.name || 'Sin operador' }}</span>
+                <span><app-icon name="vehicle" [size]="13" /> {{ r.vehicle?.plate || '—' }}</span>
+              </div>
+              <div class="rc-foot">
+                <div class="bar"><i [style.width.%]="progress(r)"></i></div>
+                <span class="muted">{{ progress(r) }}% · {{ r._count?.events || 0 }} paradas</span>
+                @if (pendingApprovals(r) || r.status === 'CHECKLIST_PENDING') {
+                  <span class="pill warn" title="Requiere aprobación">
+                    <app-icon name="bell" [size]="11" /> {{ pendingApprovals(r) || '!' }}
+                  </span>
+                }
+                @if (r._count?.incidents) {
+                  <span class="pill danger" title="Incidencias"><app-icon name="alert" [size]="11" /> {{ r._count?.incidents }}</span>
+                }
+              </div>
+            </button>
+          }
+        }
+      </div>
+    </div>
+  </aside>
+
+  <!-- ═══════════ Panel 2: detalle ═══════════ -->
+  <section class="panel detail-panel">
+    <div class="panel-rail" title="Selecciona una ruta para ver el detalle">
+      <app-icon name="route" [size]="20" />
+    </div>
+    <div class="panel-inner">
+    @if (!selectedId()) {
+      <div class="empty big">
+        <app-icon name="route" [size]="56" />
+        <h3>Selecciona una ruta</h3>
+        <p class="muted">Elige una ruta del panel izquierdo para ver paradas, checklist, gastos e incidencias.</p>
+        <a routerLink="/app/routes/new" class="btn btn-primary"><app-icon name="plus" [size]="16" /> Nueva ruta</a>
+      </div>
+    } @else if (loadingDetail() && !detail()) {
+      <p class="muted empty">Cargando ruta…</p>
+    } @else {
+    @if (detail(); as r) {
+      <header class="detail-head">
+        <div class="dh-main">
+          <div class="dh-title">
+            <h2>{{ r.name }}</h2>
+            <span [class]="'badge badge-' + ROUTE_BADGE[r.status]">{{ ROUTE_LABEL[r.status] }}</span>
+          </div>
+          <div class="dh-meta muted">
+            <span><app-icon name="driver" [size]="14" /> {{ r.driver?.name || 'Sin operador' }}</span>
+            <span><app-icon name="vehicle" [size]="14" /> {{ r.vehicle?.plate || '—' }}</span>
+            @if (r.client) { <span><app-icon name="client" [size]="14" /> {{ r.client.name }}</span> }
+            <span><app-icon name="clock" [size]="14" /> Planificada {{ dateTime(r.dateStart) }}</span>
+            @if (r.dateStarted) { <span><app-icon name="play" [size]="14" /> Inició {{ time(r.dateStarted) }}</span> }
+          </div>
+        </div>
+
+        <div class="dh-actions">
+          @if (r.status === 'CHECKLIST_PENDING' && auth.canDispatch()) {
+            <button class="btn btn-primary btn-sm" (click)="approveChecklist()"><app-icon name="check" [size]="16" /> Aprobar checklist</button>
+          }
+          @if (r.status === 'ENROUTE' && auth.canDispatch()) {
+            <button class="btn btn-ghost btn-sm" (click)="changeStatus('PAUSED')"><app-icon name="pause" [size]="16" /> Pausar</button>
+          }
+          @if (r.status === 'PAUSED' && auth.canDispatch()) {
+            <button class="btn btn-ghost btn-sm" (click)="changeStatus('ENROUTE')"><app-icon name="play" [size]="16" /> Reanudar</button>
+          }
+          @if (canNotifyDriver(r)) {
+            <button class="btn btn-ghost btn-sm" (click)="notifyDriver()" title="Notificar chofer por WhatsApp"><app-icon name="whatsapp" [size]="16" /></button>
+          }
+          @if (isTrackable(r)) {
+            <a class="btn btn-ghost btn-sm" routerLink="/app/tracking" [queryParams]="{ route: r.id }" title="Ver en seguimiento"><app-icon name="map" [size]="16" /></a>
+          }
+          <div class="menu-wrap">
+            <button class="btn btn-ghost btn-sm" (click)="toggleActions()"><app-icon name="more" [size]="18" /></button>
+            @if (actionsOpen()) {
+              <div class="menu" (click)="actionsOpen.set(false)">
+                @if (auth.canDispatch()) {
+                  <button (click)="openDuplicate()"><app-icon name="copy" [size]="16" /> Duplicar ruta</button>
+                }
+                @if (!isTerminal(r) && auth.canDispatch()) {
+                  <button (click)="cancelOpen.set(true)"><app-icon name="x" [size]="16" /> Cancelar ruta</button>
+                }
+                @if (auth.isAdmin()) {
+                  <button class="danger" (click)="remove()"><app-icon name="trash" [size]="16" /> Eliminar</button>
+                }
+              </div>
+            }
+          </div>
+          <button class="icon-btn map-toggle" (click)="toggleMap()" [title]="mapOpen() ? 'Ocultar mapa' : 'Mostrar mapa'">
+            <app-icon name="map" [size]="18" />
+          </button>
+        </div>
+      </header>
+
+      @if (r.status === 'CHECKLIST_PENDING') {
+        <div class="banner warn">
+          <app-icon name="alert" [size]="18" />
+          <div><strong>Checklist con obligatorios pendientes.</strong> El operador no puede salir hasta completar la evidencia o que un admin apruebe.</div>
+        </div>
+      }
+      @if (r.status === 'CANCELLED' && r.cancelReason) {
+        <div class="banner danger"><app-icon name="x" [size]="18" /><div><strong>Cancelada:</strong> {{ r.cancelReason }}</div></div>
+      }
+
+      <div class="stats">
+        <div class="stat"><span>Progreso</span><strong>{{ progress(r) }}%</strong><div class="bar"><i [style.width.%]="progress(r)"></i></div></div>
+        <div class="stat"><span>Paradas</span><strong>{{ r.events.length }}</strong></div>
+        <div class="stat"><span>Distancia</span><strong>{{ km(r.totalDistance) }}</strong></div>
+        <div class="stat"><span>Duración est.</span><strong>{{ dur(r.totalDuration) }}</strong></div>
+        <div class="stat"><span>Km recorridos</span><strong>{{ kmTraveled(r) }}</strong></div>
+      </div>
+
+      <nav class="tabs">
+        @for (t of tabs; track t.key) {
+          <button [class.on]="tab() === t.key" (click)="tab.set(t.key)">
+            <app-icon [name]="t.icon" [size]="16" /> {{ t.label }}
+            @if (t.key === 'expenses' && r.expenses.length) { <b>{{ r.expenses.length }}</b> }
+            @if (t.key === 'incidents' && r.incidents.length) { <b class="danger">{{ r.incidents.length }}</b> }
+          </button>
+        }
+      </nav>
+
+      <!-- ── Tab: Info ── -->
+      @if (tab() === 'info') {
+        <div class="grid2">
+          <div class="card card-pad">
+            <h4>Viaje</h4>
+            <dl class="dl">
+              <dt>Fecha planificada</dt><dd>{{ dateTime(r.dateStart) }}</dd>
+              <dt>Inicio real</dt><dd>{{ dateTime(r.dateStarted) }}</dd>
+              <dt>Cierre</dt><dd>{{ dateTime(r.dateEnd) }}</dd>
+              <dt>Plantilla</dt><dd>{{ r.template?.name || 'Manual' }}</dd>
+              <dt>Cliente</dt><dd>{{ r.client?.name || '—' }}</dd>
+            </dl>
+          </div>
+          <div class="card card-pad">
+            <h4>Kilometraje y combustible</h4>
+            <dl class="dl">
+              <dt>Km inicial</dt><dd>{{ r.kmInitial || 'No capturado' }}</dd>
+              <dt>Km final</dt><dd>{{ r.kmFinal || '—' }}</dd>
+              <dt>Gasolina inicial</dt><dd>{{ r.gasInitial ? r.gasInitial + ' L' : 'No capturado' }}</dd>
+              <dt>Gasolina final</dt><dd>{{ r.gasFinal ? r.gasFinal + ' L' : '—' }}</dd>
+              <dt>Recorrido</dt><dd>{{ kmTraveled(r) }}</dd>
+            </dl>
+          </div>
+          <div class="card card-pad">
+            <h4>Operador y unidad</h4>
+            <dl class="dl">
+              <dt>Operador</dt><dd>{{ r.driver?.name || '—' }}</dd>
+              <dt>Teléfono</dt><dd>{{ r.driver?.phone || '—' }}</dd>
+              <dt>Unidad</dt><dd>{{ r.vehicle?.plate || '—' }} {{ r.vehicle?.name ? '· ' + r.vehicle?.name : '' }}</dd>
+            </dl>
+          </div>
+          @if (r.finalImg) {
+            <div class="card card-pad">
+              <h4>Evidencia de llegada al destino</h4>
+              <img class="thumb big" [src]="r.finalImg" (click)="lightbox.set(r.finalImg!)" alt="Evidencia destino" />
+            </div>
+          }
+        </div>
+      }
+
+      <!-- ── Tab: Paradas ── -->
+      @if (tab() === 'stops') {
+        <div class="card stops-card">
+          <ol class="stops">
+            @for (e of r.events; track e.id) {
+              <li [class.done]="e.status === 'COMPLETED'" [class.issue]="e.status === 'ISSUE'">
+                <div class="pos" [class.done]="e.status === 'COMPLETED'" [class.issue]="e.status === 'ISSUE'">
+                  @if (e.status === 'COMPLETED') { <app-icon name="check" [size]="14" /> } @else { {{ e.position }} }
+                </div>
+                <div class="stop-info">
+                  <div class="si-top">
+                    <strong>{{ e.stop.label }}</strong>
+                    @if (e.stop.tag) { <span class="tag" [style.background]="e.stop.tagColor || '#6366f1'">{{ e.stop.tag }}</span> }
+                    @if (e.stop.type !== 'VISIT') { <span class="badge badge-muted">{{ STOP_TYPE_LABEL[e.stop.type] }}</span> }
+                    @if (e.priority === 'URGENT') { <span class="badge badge-danger">Urgente</span> }
+                  </div>
+                  <span class="muted addr">{{ e.stop.address }}</span>
+                  @if (e.comment) { <span class="comment">“{{ e.comment }}”</span> }
+                  @if (e.evidences.length) {
+                    <div class="thumbs">
+                      @for (ev of e.evidences; track ev.id) {
+                        <img class="thumb" [class.sig]="ev.type === 'signature'" [src]="ev.url" (click)="lightbox.set(ev.url)" [title]="ev.type === 'signature' ? 'Firma' : 'Evidencia'" alt="" />
+                      }
+                    </div>
+                  }
+                </div>
+                <div class="stop-right">
+                  <span [class]="'badge badge-' + EVENT_BADGE[e.status]">{{ EVENT_LABEL[e.status] }}</span>
+                  @if (e.deliverStatus !== 'PENDING') {
+                    <span [class]="'badge badge-' + DELIVER_BADGE[e.deliverStatus]">{{ DELIVER_LABEL[e.deliverStatus] }}</span>
+                  }
+                  @if (e.completedAt) { <span class="muted small">{{ time(e.completedAt) }}</span> }
+                  <div class="stop-actions">
+                    @if (!e.approved && e.evidences.length && auth.canDispatch()) {
+                      <button class="btn btn-primary btn-sm" (click)="approveEvent(e)" title="Aprobar evidencia"><app-icon name="check" [size]="14" /> Aprobar</button>
+                    }
+                    @if (e.status === 'COMPLETED' && !isTerminal(r) && auth.isAdmin()) {
+                      <button class="icon-btn" (click)="retryEvent(e)" title="Reintento"><app-icon name="edit" [size]="15" /></button>
+                    }
+                    @if (canNotifyClient(r) && e.stop.phoneNotification && e.status !== 'COMPLETED') {
+                      <button class="icon-btn" (click)="notifyClient(e)" title="Notificar cliente (SMS)"><app-icon name="sms" [size]="15" /></button>
+                    }
+                    @if (e.status !== 'COMPLETED' && !isTerminal(r) && auth.canDispatch()) {
+                      <select class="select select-xs" [ngModel]="e.priority" (ngModelChange)="setPriority(e, $event)" title="Prioridad">
+                        <option value="URGENT">Urgente</option>
+                        <option value="NORMAL">Normal</option>
+                        <option value="NOTURGENT">No urgente</option>
+                      </select>
+                    }
+                  </div>
+                </div>
+              </li>
+            }
+          </ol>
+        </div>
+      }
+
+      <!-- ── Tab: Checklist ── -->
+      @if (tab() === 'checklist') {
+        <div class="card card-pad">
+          @if (!r.checklist.length) {
+            <p class="muted">Esta ruta no tiene checklist (el cliente no define ítems).</p>
+          } @else {
+            <ul class="checklist">
+              @for (c of r.checklist; track c.id) {
+                <li>
+                  <span class="chk" [class.done]="c.done">@if (c.done) { <app-icon name="check" [size]="14" /> }</span>
+                  <span class="chk-label">{{ c.label }} @if (c.required) { <em class="req">*</em> }</span>
+                  @if (c.photo) {
+                    @if (c.photoUrl) {
+                      <img class="thumb" [src]="c.photoUrl" (click)="lightbox.set(c.photoUrl!)" alt="" />
+                    } @else {
+                      <span class="badge badge-warn"><app-icon name="camera" [size]="12" /> Sin foto</span>
+                    }
+                  }
+                  @if (c.required && !c.done) { <span class="badge badge-danger">Pendiente</span> }
+                </li>
+              }
+            </ul>
+            <p class="muted small">* Obligatorio. Un obligatorio con foto se cumple solo con evidencia (RN-CHK-03).</p>
+          }
+          <div class="kv">
+            <div><span class="muted">GPS de salida</span><strong>{{ r.startLat ? (r.startLat | number:'1.4-4') + ', ' + (r.startLng | number:'1.4-4') : 'No capturado' }}</strong></div>
+            <div><span class="muted">Km / gas inicial</span><strong>{{ r.kmInitial || '—' }} km · {{ r.gasInitial || '—' }} L</strong></div>
+          </div>
+        </div>
+      }
+
+      <!-- ── Tab: Gastos ── -->
+      @if (tab() === 'expenses') {
+        <div class="card">
+          @if (!r.expenses.length) {
+            <p class="muted empty">Sin gastos registrados por el operador.</p>
+          } @else {
+            <table class="table">
+              <thead><tr><th>Concepto</th><th>Pago</th><th>Monto</th><th>Comentario</th><th>Comprobante</th><th>Estado</th><th></th></tr></thead>
+              <tbody>
+                @for (x of r.expenses; track x.id) {
+                  <tr>
+                    <td><strong>{{ x.concept }}</strong></td>
+                    <td>{{ x.paymentType }}</td>
+                    <td>{{ money(x.amount) }}</td>
+                    <td class="muted">{{ x.comment || '—' }}</td>
+                    <td><img class="thumb" [src]="x.imageUrl" (click)="lightbox.set(x.imageUrl)" alt="" /></td>
+                    <td><span [class]="'badge badge-' + (x.status === 'DONE' ? 'ok' : 'warn')">{{ x.status === 'DONE' ? 'Pagado' : 'Pendiente' }}</span></td>
+                    <td>@if (x.status !== 'DONE' && auth.canDispatch()) { <button class="btn btn-ghost btn-sm" (click)="expenseDone(x.id)">Marcar pagado</button> }</td>
+                  </tr>
+                }
+              </tbody>
+              <tfoot><tr><td colspan="2"><strong>Total</strong></td><td colspan="5"><strong>{{ money(expensesTotal(r)) }}</strong></td></tr></tfoot>
+            </table>
+          }
+        </div>
+      }
+
+      <!-- ── Tab: Incidencias ── -->
+      @if (tab() === 'incidents') {
+        <div class="incidents">
+          @if (!r.incidents.length) {
+            <div class="card"><p class="muted empty">Sin incidencias en esta ruta.</p></div>
+          }
+          @for (i of r.incidents; track i.id) {
+            <div class="card card-pad incident">
+              <div class="inc-head">
+                <span class="badge badge-danger">{{ INCIDENT_LABEL[i.reason] }}</span>
+                <span class="muted small">{{ dateTime(i.createdAt) }}</span>
+                @if (i.lat) { <span class="muted small">{{ i.lat | number:'1.4-4' }}, {{ i.lng | number:'1.4-4' }}</span> }
+              </div>
+              @if (i.comment) { <p>{{ i.comment }}</p> }
+              @if (i.photos.length) {
+                <div class="thumbs">
+                  @for (p of i.photos; track p) { <img class="thumb" [src]="p" (click)="lightbox.set(p)" alt="" /> }
+                </div>
+              }
+            </div>
+          }
+        </div>
+      }
+    }
+    }
+    </div>
+  </section>
+
+  <!-- ═══════════ Panel 3: mapa (desplegable) ═══════════ -->
+  <aside class="panel map-panel">
+    <div class="panel-rail right" (click)="mapOpen.set(true)" title="Mostrar mapa">
+      <app-icon name="map" [size]="20" />
+    </div>
+    <div class="panel-inner">
+      <header class="panel-head">
+        <h3>Mapa</h3>
+        <button class="icon-btn" (click)="mapOpen.set(false)" title="Ocultar mapa"><app-icon name="chevron" [size]="18" /></button>
+      </header>
+      <div class="map-box">
+        <app-route-map [points]="mapPoints()" />
+      </div>
+      @if (detail(); as r) {
+        <div class="legend">
+          <span><i class="dot brand"></i> Pendiente</span>
+          <span><i class="dot ok"></i> Atendida</span>
+          <span><i class="dot danger"></i> Con problema</span>
+          @if (isTrackable(r)) { <a routerLink="/app/tracking" [queryParams]="{ route: r.id }">Ver en vivo →</a> }
+        </div>
+      }
+    </div>
+  </aside>
+</div>
+
+<!-- ─── Toast ─── -->
+@if (toast(); as t) {
+  <div class="toast" [class.err]="t.kind === 'err'">{{ t.text }}</div>
+}
+
+<!-- ─── Lightbox ─── -->
+@if (lightbox(); as url) {
+  <div class="modal-bg" (click)="lightbox.set(null)">
+    <img class="lightbox" [src]="url" alt="" />
+  </div>
+}
+
+<!-- ─── Modal duplicar ─── -->
+@if (dupOpen()) {
+  <div class="modal-bg" (click)="dupOpen.set(false)">
+    <div class="modal card card-pad" (click)="$event.stopPropagation()">
+      <h3>Duplicar ruta</h3>
+      <p class="muted">Se crea una copia “(Copia)” para hoy sin evidencias ni avance. Elige operador y unidad (deben estar libres).</p>
+      <label class="field">Operador
+        <select class="select" [(ngModel)]="dupDriverId">
+          @for (d of drivers(); track d.id) { <option [value]="d.id" [disabled]="d.status !== 'AVAILABLE'">{{ d.name }} @if (d.status !== 'AVAILABLE') { (ocupado) }</option> }
+        </select>
+      </label>
+      <label class="field">Unidad
+        <select class="select" [(ngModel)]="dupVehicleId">
+          @for (v of vehicles(); track v.id) { <option [value]="v.id" [disabled]="v.status !== 'AVAILABLE'">{{ v.plate }} @if (v.status !== 'AVAILABLE') { (ocupada) }</option> }
+        </select>
+      </label>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" (click)="dupOpen.set(false)">Cancelar</button>
+        <button class="btn btn-primary" (click)="duplicate()">Duplicar</button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- ─── Modal cancelar ─── -->
+@if (cancelOpen()) {
+  <div class="modal-bg" (click)="cancelOpen.set(false)">
+    <div class="modal card card-pad" (click)="$event.stopPropagation()">
+      <h3>Cancelar ruta</h3>
+      <p class="muted">La ruta deja de ser editable y libera operador y unidad.</p>
+      <label class="field">Motivo (opcional)<textarea class="input" rows="3" [(ngModel)]="cancelReason"></textarea></label>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" (click)="cancelOpen.set(false)">Volver</button>
+        <button class="btn btn-danger" (click)="cancel()">Cancelar ruta</button>
+      </div>
+    </div>
+  </div>
+}

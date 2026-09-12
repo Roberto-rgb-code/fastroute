@@ -1,10 +1,14 @@
 import { IsEnum, IsNumber, IsOptional, IsString } from 'class-validator';
-import { DeliverStatus, EventStatus } from '@prisma/client';
+import { DeliverStatus, EventStatus, PriorityStatus } from '@prisma/client';
 
 export class UpdateEventDto {
   @IsOptional()
   @IsEnum(EventStatus)
   status?: EventStatus;
+
+  @IsOptional()
+  @IsEnum(PriorityStatus)
+  priority?: PriorityStatus;
 
   @IsOptional()
   @IsEnum(DeliverStatus)

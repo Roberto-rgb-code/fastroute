@@ -1,4 +1,4 @@
-import { IsEnum, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsDateString, IsEnum, IsOptional, IsString, MinLength } from 'class-validator';
 import { DriverStatus } from '@prisma/client';
 
 export class CreateDriverDto {
@@ -17,6 +17,15 @@ export class CreateDriverDto {
   @IsOptional()
   @IsString()
   photoUrl?: string;
+
+  /** RN-DRV-03: vigencia de licencia e identificación. */
+  @IsOptional()
+  @IsDateString()
+  licenseExpiry?: string;
+
+  @IsOptional()
+  @IsDateString()
+  idDocExpiry?: string;
 
   @IsOptional()
   @IsEnum(DriverStatus)

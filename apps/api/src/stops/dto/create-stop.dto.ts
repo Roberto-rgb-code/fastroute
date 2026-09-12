@@ -1,4 +1,5 @@
-import { IsLatitude, IsLongitude, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsBoolean, IsEnum, IsLatitude, IsLongitude, IsOptional, IsString, MinLength } from 'class-validator';
+import { StopType } from '@prisma/client';
 
 export class CreateStopDto {
   @IsString()
@@ -22,4 +23,46 @@ export class CreateStopDto {
   @IsOptional()
   @IsString()
   clientId?: string;
+
+  /** visit | gas | parking | cedis | main | workshop (RN-STP). */
+  @IsOptional()
+  @IsEnum(StopType)
+  type?: StopType;
+
+  @IsOptional()
+  @IsBoolean()
+  isMain?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  isArchived?: boolean;
+
+  /** RN-STP-05: teléfono para avisar al cliente de esa parada. */
+  @IsOptional()
+  @IsString()
+  phoneNotification?: string;
+
+  @IsOptional()
+  @IsString()
+  schedule?: string;
+
+  @IsOptional()
+  @IsString()
+  commentInternal?: string;
+
+  @IsOptional()
+  @IsString()
+  commentDriver?: string;
+
+  @IsOptional()
+  @IsString()
+  tag?: string;
+
+  @IsOptional()
+  @IsString()
+  tagColor?: string;
+
+  @IsOptional()
+  @IsString()
+  fileUrl?: string;
 }

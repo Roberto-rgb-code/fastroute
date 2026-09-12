@@ -1,0 +1,95 @@
+<app-page-header title="Plantillas de ruta" subtitle="Recorridos reutilizables: sin fecha, sin estado, no ocupan operador">
+  <button class="btn btn-primary" (click)="create()"><app-icon name="plus" [size]="18" /> Nueva plantilla</button>
+</app-page-header>
+
+@if (!items().length) {
+  <div class="card"><p class="muted empty">Aún no hay plantillas. Crea una para generar rutas del día en un clic.</p></div>
+} @else {
+  <div class="tpl-grid">
+    @for (t of items(); track t.id) {
+      <div class="card tpl">
+        <div class="tpl-head">
+          <div>
+            <strong>{{ t.name }}</strong>
+            <span class="muted">{{ t.client?.name || 'Sin cliente' }} · {{ t._count?.routes || 0 }} rutas creadas</span>
+          </div>
+          <div class="tpl-actions">
+            <button class="icon-btn" (click)="edit(t)" title="Editar"><app-icon name="edit" [size]="16" /></button>
+            <button class="icon-btn danger" (click)="remove(t)" title="Eliminar"><app-icon name="trash" [size]="16" /></button>
+          </div>
+        </div>
+        <div class="tpl-stats">
+          <span><app-icon name="pin" [size]="14" /> {{ t.stops.length }} paradas</span>
+          <span><app-icon name="route" [size]="14" /> {{ km(t.totalDistance) }}</span>
+          <span><app-icon name="clock" [size]="14" /> {{ dur(t.totalDuration) }}</span>
+        </div>
+        <ol class="tpl-stops">
+          @for (s of t.stops; track s.id) {
+            <li>
+              <span class="ord" [class.first]="$first" [class.last]="$last">{{ $index + 1 }}</span>
+              <span class="lbl">{{ s.stop.label }}</span>
+              @if ($first) { <em>origen</em> } @if ($last) { <em>destino</em> }
+            </li>
+          }
+        </ol>
+        <button class="btn btn-primary btn-sm" (click)="useTemplate(t)"><app-icon name="play" [size]="14" /> Crear ruta desde plantilla</button>
+      </div>
+    }
+  </div>
+}
+
+@if (editing(); as e) {
+  <div class="drawer-bg" (click)="editing.set(null)"></div>
+  <aside class="drawer wide">
+    <header>
+      <h3>{{ e.id ? 'Editar plantilla' : 'Nueva plantilla' }}</h3>
+      <button class="icon-btn" (click)="editing.set(null)"><app-icon name="x" [size]="18" /></button>
+    </header>
+    <div class="drawer-body">
+      <div class="two">
+        <label class="field">Nombre *<input class="input" [(ngModel)]="e.name" placeholder="Ej. Ruta Norte" /></label>
+        <label class="field">Cliente
+          <select class="select" [(ngModel)]="e.clientId">
+            <option value="">Sin cliente</option>
+            @for (c of clients(); track c.id) { <option [value]="c.id">{{ c.name }}</option> }
+          </select>
+        </label>
+      </div>
+      <div class="picker">
+        <div>
+          <div class="search">
+            <app-icon name="search" [size]="16" />
+            <input class="input" placeholder="Buscar parada…" [ngModel]="stopQuery()" (ngModelChange)="stopQuery.set($event)" />
+          </div>
+          <div class="stop-list">
+            @for (s of filteredStops(); track s.id) {
+              <button type="button" class="stop-row" [class.on]="e.stopIds.includes(s.id)" (click)="toggle(s.id)">
+                <span class="chk">@if (e.stopIds.includes(s.id)) { <app-icon name="check" [size]="12" /> }</span>
+                <div><strong>{{ s.label }}</strong><span>{{ s.address }}</span></div>
+              </button>
+            }
+          </div>
+        </div>
+        <div class="order">
+          <h4>Orden ({{ e.stopIds.length }})</h4>
+          <ol>
+            @for (id of e.stopIds; track id) {
+              <li>
+                <span class="ord">{{ $index + 1 }}</span>
+                <span class="lbl">{{ stopById(id)?.label }}</span>
+                <button class="icon-btn" (click)="move(id, -1)" [disabled]="$index === 0"><app-icon name="chevron-down" [size]="14" class="up" /></button>
+                <button class="icon-btn" (click)="move(id, 1)" [disabled]="$index === e.stopIds.length - 1"><app-icon name="chevron-down" [size]="14" /></button>
+                <button class="icon-btn" (click)="toggle(id)"><app-icon name="x" [size]="14" /></button>
+              </li>
+            }
+          </ol>
+        </div>
+      </div>
+      @if (error()) { <p class="err">{{ error() }}</p> }
+    </div>
+    <footer>
+      <button class="btn btn-ghost" (click)="editing.set(null)">Cancelar</button>
+      <button class="btn btn-primary" (click)="save()">Guardar plantilla</button>
+    </footer>
+  </aside>
+}

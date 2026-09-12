@@ -1,0 +1,67 @@
+<app-page-header title="Configuración" [subtitle]="'Reglas de operación de ' + auth.enterpriseLabel()">
+  @if (ok()) { <span class="badge badge-ok">{{ ok() }}</span> }
+  @if (saving()) { <span class="muted">Guardando…</span> }
+</app-page-header>
+
+@if (error()) { <div class="banner danger">{{ error() }}</div> }
+
+@if (s(); as st) {
+  <div class="layout">
+    <div class="main">
+      @for (g of groups; track g.id) {
+        <section class="card">
+          <header class="sec-head"><app-icon [name]="g.icon" [size]="18" /> <h3>{{ g.label }}</h3></header>
+          @for (t of byGroup(g.id); track t.key) {
+            <div class="row" [class.locked]="!canEdit(t)">
+              <div class="row-text">
+                <strong>{{ t.title }} <code>{{ t.rule }}</code></strong>
+                <span class="muted">{{ t.desc }}</span>
+              </div>
+              <button class="switch" [class.on]="st[t.key]" (click)="toggle(t)" [disabled]="!canEdit(t)" [attr.aria-checked]="st[t.key]" role="switch">
+                <i></i>
+              </button>
+            </div>
+          }
+          @if (g.id === 'plataforma') {
+            <div class="row" [class.locked]="!auth.isSuper()">
+              <div class="row-text">
+                <strong>Máximo de usuarios <code>RN-MEM-02</code></strong>
+                <span class="muted">Tope de usuarios de la empresa. 0 = sin tope.</span>
+              </div>
+              <input class="input num" type="number" min="0" [ngModel]="st.max_users_per_ent" (change)="setMaxUsers($any($event.target).value)" [disabled]="!auth.isSuper()" />
+            </div>
+          }
+        </section>
+      }
+    </div>
+
+    <aside class="side">
+      <section class="card card-pad">
+        <header class="sec-head"><app-icon name="pin" [size]="18" /> <h3>Tags de paradas</h3></header>
+        <p class="muted small">Etiquetas (color + nombre) disponibles al dar de alta paradas. <code>RN-STP-06</code></p>
+        <div class="tags">
+          @for (t of st.stop_tag; track t.name) {
+            <span class="tag" [style.background]="t.color">{{ t.name }} <button (click)="removeTag(t.name)" title="Quitar">×</button></span>
+          }
+          @if (!st.stop_tag.length) { <span class="muted small">Sin tags aún.</span> }
+        </div>
+        <div class="tag-form">
+          <input class="input" placeholder="Nuevo tag" [(ngModel)]="newTag" (keyup.enter)="addTag()" />
+          <input class="color" type="color" [(ngModel)]="newTagColor" />
+          <button class="btn btn-primary btn-sm" (click)="addTag()"><app-icon name="plus" [size]="14" /></button>
+        </div>
+      </section>
+
+      <section class="card card-pad info">
+        <header class="sec-head"><app-icon name="info" [size]="18" /> <h3>Reglas fijas</h3></header>
+        <ul class="muted small">
+          <li>Día operativo en hora de México (UTC-6); timestamps en UTC.</li>
+          <li>Operador/unidad en taller o con viaje abierto no se asignan.</li>
+          <li>No se completan paradas sin km/gas inicial y checklist obligatorio.</li>
+          <li><b>Completada</b> = cierre al entregar destino; <b>Terminada</b> = cierre manual.</li>
+          <li>Duplicar una ruta no copia evidencias, checklist cumplido ni gastos.</li>
+        </ul>
+      </section>
+    </aside>
+  </div>
+}

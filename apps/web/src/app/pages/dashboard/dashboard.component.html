@@ -1,79 +1,251 @@
-<app-page-header title="Dashboard" subtitle="Resumen operativo de hoy">
-  <a class="btn btn-primary" routerLink="/app/routes/new">
-    <app-icon name="plus" [size]="18" /> Nueva ruta
-  </a>
-</app-page-header>
+<header class="mb-5 flex flex-wrap items-start justify-between gap-4">
+  <div>
+    <h1 class="text-2xl font-bold tracking-tight text-ink-900">¡Bienvenido de vuelta, {{ firstName() }}! 👋</h1>
+    <p class="mt-1 text-sm text-ink-500">Así va tu operación · {{ dayLabel() }} (UTC-6)</p>
+  </div>
+  <div class="flex shrink-0 gap-2">
+    @if (kpis()?.pendingApprovals) {
+      <a class="inline-flex items-center gap-2 rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm font-semibold text-ink-700 hover:bg-ink-50" routerLink="/app/routes" [queryParams]="{ approvals: 1 }">
+        <app-icon name="bell" [size]="16" /> {{ kpis()?.pendingApprovals }} por aprobar
+      </a>
+    }
+    <a class="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-3 py-2 text-sm font-semibold text-white hover:bg-brand-700" routerLink="/app/routes/new">
+      <app-icon name="plus" [size]="18" /> Nueva ruta
+    </a>
+  </div>
+</header>
 
-<section class="kpis">
-  <div class="kpi card">
-    <div class="kpi-icon k-info"><app-icon name="clock" [size]="22" /></div>
-    <div>
-      <span class="kpi-label">En ruta</span>
-      <strong class="kpi-value">{{ kpis()?.enroute ?? '—' }}</strong>
+<section class="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+  <a class="rounded-2xl border border-ink-200 bg-white p-4 shadow-sm transition hover:-translate-y-px hover:shadow-md" routerLink="/app/routes">
+    <div class="mb-2 flex items-baseline justify-between"><span class="text-sm font-semibold text-ink-700">Rutas de hoy</span><span class="text-[11px] text-ink-400">{{ series()?.days ?? period() }} días</span></div>
+    <div class="grid grid-cols-[minmax(0,1fr)_110px] items-end gap-3">
+      <div>
+        <strong class="block text-[1.65rem] font-bold leading-none tracking-tight">{{ todayRoutes() }}</strong>
+        <div class="mt-2 flex items-center gap-1 text-xs" [class.text-ok]="trendClass(series()?.trend?.routes) === 'up'" [class.text-danger]="trendClass(series()?.trend?.routes) === 'down'">
+          <app-icon [name]="trendClass(series()?.trend?.routes) === 'up' ? 'trend-up' : 'trend-down'" [size]="14" />
+          <b>{{ trendText(series()?.trend?.routes) }}</b>
+          <span class="truncate font-normal text-ink-500">{{ kpis()?.enroute ?? 0 }} en curso</span>
+        </div>
+      </div>
+      <div class="min-w-0"><app-chart [config]="sparkRoutes()" [height]="56" /></div>
+    </div>
+  </a>
+
+  <a class="rounded-2xl border border-ink-200 bg-white p-4 shadow-sm transition hover:-translate-y-px hover:shadow-md" routerLink="/app/reports">
+    <div class="mb-2 flex items-baseline justify-between"><span class="text-sm font-semibold text-ink-700">Entregas</span><span class="text-[11px] text-ink-400">{{ series()?.days ?? period() }} días</span></div>
+    <div class="grid grid-cols-[minmax(0,1fr)_110px] items-end gap-3">
+      <div>
+        <strong class="block text-[1.65rem] font-bold leading-none tracking-tight">{{ series()?.totals?.delivered ?? '—' }}</strong>
+        <div class="mt-2 flex items-center gap-1 text-xs" [class.text-ok]="trendClass(series()?.trend?.delivered) === 'up'" [class.text-danger]="trendClass(series()?.trend?.delivered) === 'down'">
+          <app-icon [name]="trendClass(series()?.trend?.delivered) === 'up' ? 'trend-up' : 'trend-down'" [size]="14" />
+          <b>{{ trendText(series()?.trend?.delivered) }}</b>
+          <span class="truncate font-normal text-ink-500">{{ series()?.totals?.successRate ?? 0 }}% de éxito</span>
+        </div>
+      </div>
+      <div class="min-w-0"><app-chart [config]="sparkDelivered()" [height]="56" /></div>
+    </div>
+  </a>
+
+  <a class="rounded-2xl border border-ink-200 bg-white p-4 shadow-sm transition hover:-translate-y-px hover:shadow-md" routerLink="/app/reports">
+    <div class="mb-2 flex items-baseline justify-between"><span class="text-sm font-semibold text-ink-700">Km recorridos</span><span class="text-[11px] text-ink-400">{{ series()?.days ?? period() }} días</span></div>
+    <div class="grid grid-cols-[minmax(0,1fr)_110px] items-end gap-3">
+      <div>
+        <strong class="block truncate text-[1.65rem] font-bold leading-none tracking-tight">{{ (series()?.totals?.km ?? 0).toLocaleString('es-MX') }} <small class="text-sm font-medium text-ink-500">km</small></strong>
+        <div class="mt-2 flex items-center gap-1 text-xs" [class.text-ok]="trendClass(series()?.trend?.km) === 'up'" [class.text-danger]="trendClass(series()?.trend?.km) === 'down'">
+          <app-icon [name]="trendClass(series()?.trend?.km) === 'up' ? 'trend-up' : 'trend-down'" [size]="14" />
+          <b>{{ trendText(series()?.trend?.km) }}</b>
+          <span class="truncate font-normal text-ink-500">vs periodo anterior</span>
+        </div>
+      </div>
+      <div class="min-w-0"><app-chart [config]="sparkKm()" [height]="56" /></div>
+    </div>
+  </a>
+
+  <a class="rounded-2xl border border-ink-200 bg-white p-4 shadow-sm transition hover:-translate-y-px hover:shadow-md" routerLink="/app/reports">
+    <div class="mb-2 flex items-baseline justify-between"><span class="text-sm font-semibold text-ink-700">Gastos de ruta</span><span class="text-[11px] text-ink-400">{{ series()?.days ?? period() }} días</span></div>
+    <div class="grid grid-cols-[minmax(0,1fr)_110px] items-end gap-3">
+      <div>
+        <strong class="block truncate text-[1.65rem] font-bold leading-none tracking-tight">{{ money(series()?.totals?.expenses) }}</strong>
+        <div class="mt-2 flex items-center gap-1 text-xs" [class.text-danger]="trendClass(series()?.trend?.expenses) === 'up'" [class.text-ok]="trendClass(series()?.trend?.expenses) === 'down'">
+          <app-icon [name]="trendClass(series()?.trend?.expenses) === 'up' ? 'trend-up' : 'trend-down'" [size]="14" />
+          <b>{{ trendText(series()?.trend?.expenses) }}</b>
+          <span class="truncate font-normal text-ink-500">gasolina, casetas, otros</span>
+        </div>
+      </div>
+      <div class="min-w-0"><app-chart [config]="sparkExpenses()" [height]="56" /></div>
+    </div>
+  </a>
+</section>
+
+<section class="mb-4 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+  <div class="rounded-2xl border border-ink-200 bg-white shadow-sm">
+    <div class="flex flex-wrap items-start justify-between gap-3 px-5 pt-4">
+      <div>
+        <h3 class="text-base font-bold">Resumen de entregas</h3>
+        <p class="text-xs text-ink-500">Paradas entregadas vs. planificadas por día operativo</p>
+      </div>
+      <div class="flex flex-wrap justify-end gap-2">
+        <div class="inline-flex rounded-lg bg-ink-100 p-0.5">
+          <button type="button" class="rounded-md px-2.5 py-1 text-xs font-semibold" [class.bg-white]="barMode() === 'stops'" [class.shadow-sm]="barMode() === 'stops'" [class.text-ink-500]="barMode() !== 'stops'" (click)="barMode.set('stops')">Paradas</button>
+          <button type="button" class="rounded-md px-2.5 py-1 text-xs font-semibold" [class.bg-white]="barMode() === 'routes'" [class.shadow-sm]="barMode() === 'routes'" [class.text-ink-500]="barMode() !== 'routes'" (click)="barMode.set('routes')">Rutas</button>
+        </div>
+        <div class="inline-flex rounded-lg bg-ink-100 p-0.5">
+          @for (p of periods; track p) {
+            <button type="button" class="rounded-md px-2.5 py-1 text-xs font-semibold" [class.bg-white]="period() === p" [class.shadow-sm]="period() === p" [class.text-ink-500]="period() !== p" (click)="setPeriod(p)">{{ p }}d</button>
+          }
+        </div>
+      </div>
+    </div>
+    <div class="px-4 pb-4 pt-2">
+      <app-chart [config]="barsConfig()" [height]="280" />
     </div>
   </div>
-  <div class="kpi card">
-    <div class="kpi-icon k-muted"><app-icon name="route" [size]="22" /></div>
-    <div>
-      <span class="kpi-label">Pendientes</span>
-      <strong class="kpi-value">{{ kpis()?.pending ?? '—' }}</strong>
+
+  <div class="flex flex-col rounded-2xl border border-ink-200 bg-white shadow-sm">
+    <div class="px-5 pt-4">
+      <h3 class="text-base font-bold">Resultado de paradas</h3>
+      <p class="text-xs text-ink-500">Distribución en el periodo</p>
     </div>
-  </div>
-  <div class="kpi card">
-    <div class="kpi-icon k-ok"><app-icon name="check" [size]="22" /></div>
-    <div>
-      <span class="kpi-label">Completadas</span>
-      <strong class="kpi-value">{{ kpis()?.completed ?? '—' }}</strong>
+    <div class="relative px-5 pt-2">
+      <app-chart [config]="donutConfig()" [height]="200" />
+      <div class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center pt-2">
+        <strong class="text-3xl font-extrabold tracking-tight">{{ series()?.totals?.successRate ?? 0 }}%</strong>
+        <span class="text-xs text-ink-500">entregadas</span>
+      </div>
     </div>
-  </div>
-  <div class="kpi card">
-    <div class="kpi-icon k-brand"><app-icon name="package" [size]="22" /></div>
-    <div>
-      <span class="kpi-label">Entregas</span>
-      <strong class="kpi-value">{{ kpis()?.stopsDelivered ?? 0 }}/{{ kpis()?.stopsTotal ?? 0 }}</strong>
+    <ul class="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 px-5 text-xs text-ink-700">
+      @for (l of donutLegend(); track l.label) {
+        <li class="flex items-center gap-1.5"><i class="h-2 w-2 rounded-full" [style.background]="l.color"></i>{{ l.label }}<b class="ml-auto">{{ l.value }}</b></li>
+      }
+    </ul>
+    <div class="mt-auto grid grid-cols-2 gap-3 p-5">
+      <a class="flex items-center gap-2 rounded-xl border border-ink-100 p-2.5 hover:bg-ink-50" routerLink="/app/routes" [queryParams]="{ approvals: 1 }">
+        <span class="grid h-8 w-8 place-items-center rounded-lg bg-info-bg text-info"><app-icon name="checklist" [size]="16" /></span>
+        <span><strong class="block text-sm leading-tight">{{ kpis()?.pendingApprovals ?? 0 }}</strong><span class="text-[11px] text-ink-500">Por aprobar</span></span>
+      </a>
+      <a class="flex items-center gap-2 rounded-xl border border-ink-100 p-2.5 hover:bg-ink-50" routerLink="/app/reports">
+        <span class="grid h-8 w-8 place-items-center rounded-lg bg-warn-bg text-warn"><app-icon name="alert" [size]="16" /></span>
+        <span><strong class="block text-sm leading-tight">{{ series()?.totals?.completed ?? 0 }}</strong><span class="text-[11px] text-ink-500">Completadas</span></span>
+      </a>
     </div>
   </div>
 </section>
 
-<section class="grid">
-  <div class="card card-pad rate-card">
-    <h3>Tasa de entrega</h3>
-    <div class="ring" [style.--val]="deliveryRate">
-      <span>{{ deliveryRate }}%</span>
+<section class="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+  <div class="overflow-hidden rounded-2xl border border-ink-200 bg-white shadow-sm">
+    <div class="flex items-start justify-between gap-3 px-5 pt-4">
+      <div>
+        <h3 class="text-base font-bold">Rutas recientes</h3>
+        <p class="text-xs text-ink-500">Últimas rutas del periodo</p>
+      </div>
+      <a routerLink="/app/routes" class="text-sm font-semibold text-brand-600">Ver rutas del día →</a>
     </div>
-    <p class="muted">{{ kpis()?.stopsDelivered ?? 0 }} de {{ kpis()?.stopsTotal ?? 0 }} paradas completadas</p>
-    <div class="fleet">
-      <div><app-icon name="driver" [size]="18" /> {{ kpis()?.drivers ?? 0 }} conductores</div>
-      <div><app-icon name="vehicle" [size]="18" /> {{ kpis()?.vehicles ?? 0 }} vehículos</div>
-    </div>
+    @if (!series()) {
+      <p class="px-5 py-8 text-center text-sm text-ink-500">Cargando…</p>
+    } @else if (series()!.recent.length === 0) {
+      <p class="px-5 py-8 text-center text-sm text-ink-500">Sin rutas en el periodo.</p>
+    } @else {
+      <div class="overflow-x-auto">
+        <table class="w-full border-collapse text-sm">
+          <thead>
+            <tr class="text-left text-xs font-medium text-ink-400">
+              <th class="px-5 py-2">Ruta</th>
+              <th class="px-3 py-2">Operador</th>
+              <th class="px-3 py-2">Inicio</th>
+              <th class="px-3 py-2 text-right">Paradas</th>
+              <th class="px-3 py-2 text-right">Km</th>
+              <th class="px-3 py-2 text-right">Gastos</th>
+              <th class="px-5 py-2">Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (r of series()!.recent; track r.id) {
+              <tr class="border-t border-ink-100 hover:bg-ink-50">
+                <td class="px-5 py-2.5">
+                  <a [routerLink]="['/app/routes', r.id]" class="flex items-center gap-2 text-ink-900">
+                    <span class="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-ink-100 text-ink-700"><app-icon name="vehicle" [size]="16" /></span>
+                    <span>
+                      <strong class="block text-sm">{{ r.name }}</strong>
+                      <small class="text-[11px] text-ink-500">{{ r.vehicle?.plate || 'Sin unidad' }}</small>
+                    </span>
+                  </a>
+                </td>
+                <td class="whitespace-nowrap px-3 py-2.5">
+                  <span class="inline-flex items-center gap-2">
+                    <span class="grid h-6 w-6 place-items-center rounded-full bg-brand-100 text-[10px] font-bold text-brand-700">{{ initials(r.driver?.name) }}</span>
+                    {{ r.driver?.name || '—' }}
+                  </span>
+                </td>
+                <td class="whitespace-nowrap px-3 py-2.5 text-ink-500">{{ shortDate(r.dateStart) }}</td>
+                <td class="px-3 py-2.5 text-right tabular-nums">{{ r.delivered }}<span class="text-ink-400">/{{ r.stops }}</span></td>
+                <td class="px-3 py-2.5 text-right tabular-nums">{{ r.km ?? '—' }}</td>
+                <td class="px-3 py-2.5 text-right tabular-nums">{{ r.expenses ? money(r.expenses) : '—' }}</td>
+                <td class="px-5 py-2.5"><span class="inline-block whitespace-nowrap rounded-md px-2 py-1 text-xs font-semibold" [class]="pillClass(ROUTE_BADGE[r.status])">{{ ROUTE_LABEL[r.status] }}</span></td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
   </div>
 
-  <div class="card active-card">
-    <div class="card-head">
-      <h3>Rutas activas</h3>
-      <a routerLink="/app/routes" class="link-sm">Ver todas</a>
-    </div>
-    @if (loading()) {
-      <p class="empty muted">Cargando…</p>
-    } @else if (active().length === 0) {
-      <p class="empty muted">No hay rutas activas.</p>
-    } @else {
-      <ul class="route-list">
-        @for (r of active(); track r.id) {
-          <li>
-            <a [routerLink]="['/app/routes', r.id]" class="route-item">
-              <div class="route-main">
-                <strong>{{ r.name }}</strong>
-                <span class="muted">{{ r.driver?.name || 'Sin conductor' }} · {{ r.vehicle?.plate || '—' }}</span>
-              </div>
-              <div class="route-side">
-                <span [class]="'badge badge-' + ROUTE_BADGE[r.status]">{{ ROUTE_LABEL[r.status] }}</span>
-                <div class="bar"><i [style.width.%]="progress(r)"></i></div>
-              </div>
-            </a>
-          </li>
+  <div class="flex flex-col gap-4">
+    <div class="rounded-2xl border border-ink-200 bg-white p-4 shadow-sm">
+      <h3 class="text-base font-bold">Mapa de calor</h3>
+      <p class="mb-3 text-xs text-ink-500">Entregas por día y hora</p>
+      <div class="flex flex-col gap-1">
+        <div class="grid grid-cols-[30px_repeat(8,minmax(0,1fr))] gap-1 text-center text-[10px] text-ink-400">
+          <span></span>
+          @for (h of hourBuckets; track h) { <span>{{ h }}h</span> }
+        </div>
+        @for (row of heatRows(); track row.label) {
+          <div class="grid grid-cols-[30px_repeat(8,minmax(0,1fr))] items-center gap-1">
+            <span class="text-[11px] text-ink-500">{{ row.label }}</span>
+            @for (c of row.cells; track c.start) {
+              <span
+                class="grid aspect-square place-items-center rounded-md text-[10px] font-semibold"
+                [class.bg-ink-50]="heatClass(c.value) === 'h0'"
+                [class.bg-blue-100]="heatClass(c.value) === 'h1'"
+                [class.bg-blue-300]="heatClass(c.value) === 'h2'"
+                [class.bg-blue-500]="heatClass(c.value) === 'h3'"
+                [class.text-white]="heatClass(c.value) === 'h3' || heatClass(c.value) === 'h4'"
+                [class.bg-blue-700]="heatClass(c.value) === 'h4'"
+                [title]="row.label + ' ' + c.start + ':00 · ' + c.value + ' entregas'"
+              >@if (c.value) { {{ c.value }} }</span>
+            }
+          </div>
         }
-      </ul>
-    }
+      </div>
+    </div>
+
+    <div class="rounded-2xl border border-ink-200 bg-white shadow-sm">
+      <div class="px-4 pt-4">
+        <h3 class="text-base font-bold">Flota disponible</h3>
+        <p class="text-xs text-ink-500">Ahora mismo</p>
+      </div>
+      <div class="flex flex-col gap-3 px-4 py-3">
+        <a routerLink="/app/drivers" class="text-ink-900">
+          <span class="flex items-center gap-2"><span class="grid h-8 w-8 place-items-center rounded-lg bg-brand-50 text-brand-600"><app-icon name="driver" [size]="16" /></span><span><strong>{{ kpis()?.driversAvailable ?? 0 }}<span class="font-medium text-ink-400">/{{ kpis()?.drivers ?? 0 }}</span></strong><span class="block text-[11px] text-ink-500">Operadores libres</span></span></span>
+          <span class="mt-2 block h-1.5 overflow-hidden rounded-full bg-ink-100"><i class="block h-full rounded-full bg-brand-600" [style.width.%]="kpis()?.drivers ? ((kpis()?.driversAvailable ?? 0) / kpis()!.drivers) * 100 : 0"></i></span>
+        </a>
+        <a routerLink="/app/vehicles" class="text-ink-900">
+          <span class="flex items-center gap-2"><span class="grid h-8 w-8 place-items-center rounded-lg bg-info-bg text-info"><app-icon name="vehicle" [size]="16" /></span><span><strong>{{ kpis()?.vehiclesAvailable ?? 0 }}<span class="font-medium text-ink-400">/{{ kpis()?.vehicles ?? 0 }}</span></strong><span class="block text-[11px] text-ink-500">Unidades libres</span></span></span>
+          <span class="mt-2 block h-1.5 overflow-hidden rounded-full bg-ink-100"><i class="block h-full rounded-full bg-brand-600" [style.width.%]="kpis()?.vehicles ? ((kpis()?.vehiclesAvailable ?? 0) / kpis()!.vehicles) * 100 : 0"></i></span>
+        </a>
+      </div>
+      @if (active().length) {
+        <ul class="border-t border-ink-100 px-2 py-2">
+          @for (r of active(); track r.id) {
+            <li>
+              <a class="flex items-center gap-2 rounded-lg px-2 py-2 text-sm hover:bg-ink-50" [routerLink]="['/app/routes', r.id]">
+                <span class="h-2 w-2 shrink-0 rounded-full" [class.bg-ok]="ROUTE_BADGE[r.status] === 'ok'" [class.bg-info]="ROUTE_BADGE[r.status] === 'info'" [class.bg-warn]="ROUTE_BADGE[r.status] === 'warn'" [class.bg-danger]="ROUTE_BADGE[r.status] === 'danger'" [class.bg-ink-400]="ROUTE_BADGE[r.status] === 'muted'"></span>
+                <span class="min-w-0 flex-1 truncate">{{ r.name }}</span>
+                <span class="text-xs tabular-nums text-ink-500">{{ progress(r) }}%</span>
+              </a>
+            </li>
+          }
+        </ul>
+      }
+    </div>
   </div>
 </section>

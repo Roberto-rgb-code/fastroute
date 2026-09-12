@@ -1,0 +1,75 @@
+<app-page-header title="Usuarios" [subtitle]="limit ? items().length + ' de ' + limit + ' usuarios permitidos' : items().length + ' usuarios · sin tope'">
+  <button class="btn btn-primary" (click)="showForm.set(!showForm())" [disabled]="limitReached" [title]="limitReached ? 'Límite de usuarios alcanzado (RN-MEM-02)' : ''">
+    <app-icon name="plus" [size]="18" /> Nuevo usuario
+  </button>
+</app-page-header>
+
+@if (limitReached) {
+  <div class="banner warn"><app-icon name="alert" [size]="18" /> Límite de usuarios alcanzado ({{ limit }}). Pide al super admin ampliar el plan.</div>
+}
+@if (ok()) { <div class="banner ok"><app-icon name="check" [size]="18" /> {{ ok() }}</div> }
+
+@if (showForm()) {
+  <div class="card card-pad form">
+    <div class="three">
+      <label class="field">Nombre *<input class="input" [(ngModel)]="name" /></label>
+      <label class="field">Correo *<input class="input" type="email" [(ngModel)]="email" /></label>
+      <label class="field">Contraseña *<input class="input" type="password" [(ngModel)]="password" placeholder="mín. 6" /></label>
+    </div>
+    <div class="three">
+      <label class="field">Rol
+        <select class="select" [(ngModel)]="role">
+          @for (r of roles; track r) { <option [value]="r">{{ ROLE_LABEL[r] }}</option> }
+        </select>
+        <small class="muted">{{ roleHelp[role] }}</small>
+      </label>
+      @if (role === 'DRIVER') {
+        <label class="field">Vincular a operador existente
+          <select class="select" [(ngModel)]="driverId">
+            <option value="">Crear operador nuevo con este nombre</option>
+            @for (d of unlinkedDrivers(); track d.id) { <option [value]="d.id">{{ d.name }}</option> }
+          </select>
+        </label>
+        <label class="field">Teléfono (WhatsApp)<input class="input" [(ngModel)]="phone" placeholder="+52 …" /></label>
+      }
+    </div>
+    @if (error()) { <p class="err">{{ error() }}</p> }
+    <div class="form-actions">
+      <button class="btn btn-ghost" (click)="showForm.set(false)">Cancelar</button>
+      <button class="btn btn-primary" (click)="create()">Crear usuario</button>
+    </div>
+  </div>
+}
+
+<div class="card">
+  <table class="table">
+    <thead><tr><th>Usuario</th><th>Rol</th><th>Operador</th><th>Estado</th><th>Alta</th><th></th></tr></thead>
+    <tbody>
+      @for (u of items(); track u.id) {
+        <tr [class.inactive]="!u.isActive">
+          <td>
+            <div class="user-cell">
+              <span class="avatar">{{ u.name.charAt(0) }}</span>
+              <div><strong>{{ u.name }}</strong><span class="muted">{{ u.email }}</span></div>
+            </div>
+          </td>
+          <td>
+            <select class="select select-sm" [ngModel]="u.role" (ngModelChange)="changeRole(u, $event)" [disabled]="u.id === auth.user()?.id">
+              @for (r of roles; track r) { <option [value]="r">{{ ROLE_LABEL[r] }}</option> }
+            </select>
+          </td>
+          <td>{{ u.driver?.name || '—' }}</td>
+          <td><span [class]="'badge badge-' + (u.isActive ? 'ok' : 'muted')">{{ u.isActive ? 'Activo' : 'Inactivo' }}</span></td>
+          <td class="muted">{{ u.createdAt | slice:0:10 }}</td>
+          <td class="actions">
+            <button class="icon-btn" (click)="resetPassword(u)" title="Cambiar contraseña"><app-icon name="edit" [size]="16" /></button>
+            <button class="icon-btn" (click)="toggleActive(u)" [title]="u.isActive ? 'Desactivar' : 'Activar'" [disabled]="u.id === auth.user()?.id">
+              <app-icon [name]="u.isActive ? 'pause' : 'play'" [size]="16" />
+            </button>
+            <button class="icon-btn danger" (click)="remove(u)" title="Eliminar" [disabled]="u.id === auth.user()?.id"><app-icon name="trash" [size]="16" /></button>
+          </td>
+        </tr>
+      }
+    </tbody>
+  </table>
+</div>

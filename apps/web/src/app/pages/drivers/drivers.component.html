@@ -1,14 +1,15 @@
-<app-page-header title="Conductores" subtitle="Operadores de tu flota">
+<app-page-header title="Operadores" subtitle="Conductores de tu flota · los estados en ruta los gobierna el viaje">
   <button class="btn btn-primary" (click)="showForm.set(!showForm())">
-    <app-icon name="plus" [size]="18" /> Nuevo conductor
+    <app-icon name="plus" [size]="18" /> Nuevo operador
   </button>
 </app-page-header>
 
 @if (showForm()) {
   <div class="card card-pad form-row">
     <input class="input" [(ngModel)]="name" placeholder="Nombre completo" />
-    <input class="input" [(ngModel)]="phone" placeholder="Teléfono" />
+    <input class="input" [(ngModel)]="phone" placeholder="Teléfono (WhatsApp)" />
     <input class="input" [(ngModel)]="licenseId" placeholder="Licencia" />
+    <input class="input" type="date" [(ngModel)]="licenseExpiry" title="Vigencia de licencia" />
     <button class="btn btn-primary" (click)="create()">Guardar</button>
   </div>
 }
@@ -25,16 +26,20 @@
         <button class="icon-del" (click)="remove(d)"><app-icon name="trash" [size]="16" /></button>
       </div>
       <div class="entity-meta">
-        <span class="muted">Licencia: {{ d.licenseId || '—' }}</span>
+        <span class="muted">Licencia: {{ d.licenseId || '—' }} @if (docsExpired(d)) { <span class="badge badge-danger">vencida</span> }</span>
         <span class="muted">{{ d._count?.routes || 0 }} rutas</span>
       </div>
       <div class="entity-foot">
         <span [class]="'badge badge-' + DRIVER_BADGE[d.status]">{{ DRIVER_LABEL[d.status] }}</span>
-        <select class="select select-sm" [ngModel]="d.status" (ngModelChange)="setStatus(d, $event)">
-          @for (s of statuses; track s) {
-            <option [value]="s">{{ DRIVER_LABEL[s] }}</option>
-          }
-        </select>
+        @if (routeDriven(d.status)) {
+          <span class="muted tiny" title="Estado derivado de la ruta activa (RN-DRV-06)">en viaje</span>
+        } @else {
+          <select class="select select-sm" [ngModel]="d.status" (ngModelChange)="setStatus(d, $event)">
+            @for (s of statuses; track s) {
+              <option [value]="s">{{ DRIVER_LABEL[s] }}</option>
+            }
+          </select>
+        }
       </div>
     </div>
   }

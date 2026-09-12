@@ -32,4 +32,14 @@ export class SuperEnterprisesController {
   setActive(@Param('id') id: string, @Body('isActive') isActive: boolean) {
     return this.service.setActive(id, isActive);
   }
+
+  @Get(':id/settings')
+  settings(@Param('id') id: string) {
+    return this.service.settings(id);
+  }
+
+  @Patch(':id/settings')
+  updateSettings(@Param('id') id: string, @Body() body: Record<string, unknown>) {
+    return this.service.updateSettings(id, body);
+  }
 }

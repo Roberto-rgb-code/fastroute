@@ -63,7 +63,7 @@ export class TrackingComponent implements OnInit, OnDestroy {
     try {
       const cfg = await this.api.clientConfig().toPromise();
       const key = cfg?.pusher.key;
-      const eid = this.auth.user()?.enterpriseId;
+      const eid = this.auth.activeEnterpriseId() ?? this.auth.user()?.enterpriseId;
       if (!key || !eid) return;
       this.pusher = new Pusher(key, { cluster: cfg!.pusher.cluster });
       const channel = this.pusher.subscribe(`enterprise-${eid}`);

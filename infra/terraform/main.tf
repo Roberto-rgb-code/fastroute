@@ -10,8 +10,14 @@ locals {
     "secretmanager.googleapis.com",
     "artifactregistry.googleapis.com",
     "maps-backend.googleapis.com",
+    "maps-android-backend.googleapis.com",
+    "maps-ios-backend.googleapis.com",
     "geocoding-backend.googleapis.com",
     "directions-backend.googleapis.com",
+    "distance-matrix-backend.googleapis.com",
+    "places-backend.googleapis.com",
+    "routes.googleapis.com",
+    "static-maps-backend.googleapis.com",
   ]
 }
 

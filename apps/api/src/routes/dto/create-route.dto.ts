@@ -21,7 +21,13 @@ export class CreateRouteDto {
   @IsString()
   dateStart?: string;
 
+  /** RN-RTE-02: nacer de una plantilla. Si viene, stopIds puede omitirse. */
+  @IsOptional()
+  @IsString()
+  templateId?: string;
+
+  @IsOptional()
   @IsArray()
   @IsString({ each: true })
-  stopIds!: string[];
+  stopIds?: string[];
 }

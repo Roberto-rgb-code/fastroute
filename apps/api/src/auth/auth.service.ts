@@ -3,6 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { UserRole } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { normalizeSettings } from '../settings/enterprise-settings';
 import { LoginDto } from './dto/login.dto';
 
 export type JwtPayload = {
@@ -31,6 +32,14 @@ export class AuthService {
 
     if (user.enterpriseId && user.enterprise && !user.enterprise.isActive) {
       throw new UnauthorizedException('Empresa desactivada');
+    }
+    // RN-MEM-01: membresía inactiva bloquea el panel (SUPER siempre entra).
+    if (
+      user.role !== UserRole.SUPER &&
+      user.enterprise &&
+      !normalizeSettings(user.enterprise.settings).active_membership
+    ) {
+      throw new UnauthorizedException('Tu periodo de prueba ha terminado');
     }
 
     const valid = await bcrypt.compare(dto.password, user.passwordHash);
@@ -65,6 +74,13 @@ export class AuthService {
     });
     if (!user || !user.isActive) {
       throw new UnauthorizedException();
+    }
+    if (
+      user.role !== UserRole.SUPER &&
+      user.enterprise &&
+      (!user.enterprise.isActive || !normalizeSettings(user.enterprise.settings).active_membership)
+    ) {
+      throw new UnauthorizedException('Tu periodo de prueba ha terminado');
     }
     return user;
   }

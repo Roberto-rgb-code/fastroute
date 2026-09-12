@@ -19,8 +19,9 @@ export class StopsController {
     @CurrentUser() user: User,
     @Query('enterpriseId') eid?: string,
     @Query('clientId') clientId?: string,
+    @Query('includeArchived') includeArchived?: string,
   ) {
-    return this.service.list(resolveEnterpriseId(user, eid), clientId);
+    return this.service.list(resolveEnterpriseId(user, eid), clientId, includeArchived === '1');
   }
 
   @Post()

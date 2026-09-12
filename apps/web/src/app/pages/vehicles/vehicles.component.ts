@@ -23,7 +23,10 @@ export class VehiclesComponent implements OnInit {
 
   VEHICLE_LABEL = VEHICLE_LABEL;
   VEHICLE_BADGE = VEHICLE_BADGE;
-  statuses: VehicleStatus[] = ['AVAILABLE', 'WORKSHOP', 'PAUSED'];
+  statuses: VehicleStatus[] = ['AVAILABLE', 'WORKSHOP', 'UNAVAILABLE', 'PAUSED'];
+  routeDriven(s: VehicleStatus) {
+    return ['ENROUTE', 'CHECKLIST', 'CHECKLIST_PENDING'].includes(s);
+  }
 
   ngOnInit() {
     this.load();

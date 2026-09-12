@@ -20,10 +20,19 @@ export class DriversComponent implements OnInit {
   name = '';
   phone = '';
   licenseId = '';
+  licenseExpiry = '';
 
   DRIVER_LABEL = DRIVER_LABEL;
   DRIVER_BADGE = DRIVER_BADGE;
-  statuses: DriverStatus[] = ['AVAILABLE', 'WORKSHOP', 'NODOCS', 'PAUSED'];
+  /** RN-DRV-05: estados manuales; los demás los gobierna la ruta. */
+  statuses: DriverStatus[] = ['AVAILABLE', 'WORKSHOP', 'NODOCS', 'UNAVAILABLE', 'PAUSED'];
+  routeDriven(s: DriverStatus) {
+    return ['ENROUTE', 'CHECKLIST', 'CHECKLIST_PENDING'].includes(s);
+  }
+  docsExpired(d: Driver) {
+    const now = Date.now();
+    return [d.licenseExpiry, d.idDocExpiry].some((x) => x && new Date(x).getTime() < now);
+  }
 
   ngOnInit() {
     this.load();
@@ -33,8 +42,15 @@ export class DriversComponent implements OnInit {
   }
   create() {
     if (!this.name.trim()) return;
-    this.api.createDriver({ name: this.name, phone: this.phone, licenseId: this.licenseId }).subscribe(() => {
-      this.name = this.phone = this.licenseId = '';
+    this.api
+      .createDriver({
+        name: this.name,
+        phone: this.phone,
+        licenseId: this.licenseId,
+        licenseExpiry: this.licenseExpiry ? new Date(this.licenseExpiry).toISOString() : undefined,
+      })
+      .subscribe(() => {
+      this.name = this.phone = this.licenseId = this.licenseExpiry = '';
       this.showForm.set(false);
       this.load();
     });

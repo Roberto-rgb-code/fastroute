@@ -1,4 +1,4 @@
-<a routerLink="/app/routes" class="back">← Rutas</a>
+<a routerLink="/app/routes" class="back">← Rutas del día</a>
 <h1 class="title-xl">Nueva ruta</h1>
 
 <div class="steps">
@@ -12,56 +12,101 @@
 <div class="card card-pad wizard">
   @if (step() === 1) {
     <label class="field">
-      Nombre de la ruta
-      <input class="input" [(ngModel)]="name" placeholder="Ej. Ruta Norte · Mañana" />
-    </label>
-    <label class="field">
-      Cliente (opcional — instancia checklist)
-      <select class="select" [(ngModel)]="clientId">
-        <option value="">Sin cliente</option>
-        @for (c of clients(); track c.id) {
-          <option [value]="c.id">{{ c.name }}</option>
+      Plantilla (opcional — precarga paradas y cliente)
+      <select class="select" [ngModel]="templateId" (ngModelChange)="applyTemplate($event)">
+        <option value="">Ruta manual</option>
+        @for (t of templates(); track t.id) {
+          <option [value]="t.id">{{ t.name }} · {{ t.stops.length }} paradas</option>
         }
       </select>
     </label>
+    <label class="field">
+      Nombre de la ruta
+      <input class="input" [(ngModel)]="name" placeholder="Ej. Ruta Norte · Mañana" />
+    </label>
+    <div class="two">
+      <label class="field">
+        Fecha planificada (date_start)
+        <input class="input" type="datetime-local" [(ngModel)]="dateStart" />
+      </label>
+      <label class="field">
+        Cliente (copia su checklist a la ruta)
+        <select class="select" [(ngModel)]="clientId">
+          <option value="">Sin cliente</option>
+          @for (c of clients(); track c.id) {
+            <option [value]="c.id">{{ c.name }} @if (c._count?.checklistItems) { · {{ c._count?.checklistItems }} ítems }</option>
+          }
+        </select>
+      </label>
+    </div>
   }
 
   @if (step() === 2) {
     <div class="two">
       <label class="field">
-        Conductor
+        Operador *
         <select class="select" [(ngModel)]="driverId">
-          <option value="">Sin asignar</option>
-          @for (d of availableDrivers(); track d.id) {
-            <option [value]="d.id">{{ d.name }}</option>
+          <option value="">Selecciona…</option>
+          @for (d of drivers(); track d.id) {
+            <option [value]="d.id" [disabled]="!isDriverFree(d)">
+              {{ d.name }} @if (!isDriverFree(d)) { · {{ DRIVER_LABEL[d.status] }} }
+            </option>
           }
         </select>
       </label>
       <label class="field">
-        Vehículo
+        Unidad *
         <select class="select" [(ngModel)]="vehicleId">
-          <option value="">Sin asignar</option>
-          @for (v of availableVehicles(); track v.id) {
-            <option [value]="v.id">{{ v.plate }} {{ v.name ? '· ' + v.name : '' }}</option>
+          <option value="">Selecciona…</option>
+          @for (v of vehicles(); track v.id) {
+            <option [value]="v.id" [disabled]="!isVehicleFree(v)">
+              {{ v.plate }} {{ v.name ? '· ' + v.name : '' }} @if (!isVehicleFree(v)) { · {{ VEHICLE_LABEL[v.status] }} }
+            </option>
           }
         </select>
       </label>
     </div>
-    <p class="muted hint">Solo se muestran conductores y vehículos disponibles.</p>
+    <p class="muted hint">
+      Un operador o unidad en taller, sin documentos o con un viaje abierto no se puede asignar (RN-RTE-07 / RN-DRV-02).
+    </p>
   }
 
   @if (step() === 3) {
-    <p class="muted">Selecciona las paradas en el orden de visita ({{ selected().length }} elegidas)</p>
-    <div class="stops-grid">
-      @for (s of stops(); track s.id) {
-        <button type="button" class="stop-chip" [class.on]="isSelected(s.id)" (click)="toggleStop(s.id)">
-          @if (isSelected(s.id)) { <span class="ord">{{ orderOf(s.id) }}</span> }
-          <div>
-            <strong>{{ s.label }}</strong>
-            <span>{{ s.address }}</span>
-          </div>
-        </button>
-      }
+    <div class="stops-layout">
+      <div>
+        <div class="search">
+          <app-icon name="search" [size]="16" />
+          <input class="input" placeholder="Buscar parada…" [ngModel]="stopQuery()" (ngModelChange)="stopQuery.set($event)" />
+        </div>
+        <div class="stops-grid">
+          @for (s of filteredStops(); track s.id) {
+            <button type="button" class="stop-chip" [class.on]="isSelected(s.id)" (click)="toggleStop(s.id)">
+              @if (isSelected(s.id)) { <span class="ord">{{ orderOf(s.id) }}</span> }
+              <div>
+                <strong>{{ s.label }} @if (s.isMain) { <em class="main">principal</em> }</strong>
+                <span>{{ s.address }}</span>
+                @if (s.type !== 'VISIT') { <small>{{ STOP_TYPE_LABEL[s.type] }}</small> }
+              </div>
+            </button>
+          }
+        </div>
+      </div>
+      <aside class="order card card-pad">
+        <h4>Orden de visita ({{ selected().length }})</h4>
+        <p class="muted small">La primera es el origen y la última el destino.</p>
+        @if (!selected().length) { <p class="muted small">Aún no hay paradas.</p> }
+        <ol>
+          @for (id of selected(); track id) {
+            <li>
+              <span class="ord">{{ $index + 1 }}</span>
+              <span class="lbl">{{ stopById(id)?.label }}</span>
+              <button class="icon-btn" (click)="move(id, -1)" [disabled]="$index === 0" title="Subir"><app-icon name="chevron-down" [size]="14" class="up" /></button>
+              <button class="icon-btn" (click)="move(id, 1)" [disabled]="$index === selected().length - 1" title="Bajar"><app-icon name="chevron-down" [size]="14" /></button>
+              <button class="icon-btn" (click)="toggleStop(id)" title="Quitar"><app-icon name="x" [size]="14" /></button>
+            </li>
+          }
+        </ol>
+      </aside>
     </div>
   }
 

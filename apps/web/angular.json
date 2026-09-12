@@ -20,7 +20,7 @@
         "build": {
           "builder": "@angular-devkit/build-angular:application",
           "options": {
-            "allowedCommonJsDependencies": ["mapbox-gl", "pusher-js"],
+            "allowedCommonJsDependencies": ["mapbox-gl", "pusher-js", "leaflet"],
             "outputPath": "dist/web",
             "index": "src/index.html",
             "browser": "src/main.ts",
@@ -36,6 +36,7 @@
               }
             ],
             "styles": [
+              "src/tailwind.css",
               "src/styles.scss"
             ],
             "scripts": []
@@ -95,6 +96,7 @@
               }
             ],
             "styles": [
+              "src/tailwind.css",
               "src/styles.scss"
             ],
             "scripts": []

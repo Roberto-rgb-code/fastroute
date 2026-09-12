@@ -20,16 +20,48 @@ enum UserRole {
 enum DriverStatus {
   AVAILABLE
   ENROUTE
+  CHECKLIST
+  CHECKLIST_PENDING
   WORKSHOP
   NODOCS
+  UNAVAILABLE
   PAUSED
 }
 
 enum VehicleStatus {
   AVAILABLE
   ENROUTE
+  CHECKLIST
+  CHECKLIST_PENDING
   WORKSHOP
+  UNAVAILABLE
   PAUSED
+}
+
+enum StopType {
+  VISIT
+  GAS
+  PARKING
+  CEDIS
+  MAIN
+  WORKSHOP
+}
+
+enum IncidentReason {
+  CAR_ACCIDENT
+  HOSPITAL
+  WC
+  RESTAURANT
+  PARKING
+  TRAFFIC
+  GAS
+  ROBBERY
+  OTHER
+}
+
+enum ExpenseStatus {
+  PENDING
+  DONE
 }
 
 enum RouteStatus {
@@ -102,11 +134,13 @@ model User {
 }
 
 model Driver {
-  id           String       @id @default(cuid())
-  name         String
-  phone        String?
-  licenseId    String?
-  photoUrl     String?
+  id            String       @id @default(cuid())
+  name          String
+  phone         String?
+  licenseId     String?
+  licenseExpiry DateTime?
+  idDocExpiry   DateTime?
+  photoUrl      String?
   status       DriverStatus @default(AVAILABLE)
   enterpriseId String
   enterprise   Enterprise   @relation(fields: [enterpriseId], references: [id], onDelete: Cascade)
@@ -149,6 +183,7 @@ model Client {
   stops          Stop[]
   checklistItems ChecklistItem[]
   routes         Route[]
+  templates      RouteTemplate[]
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 
@@ -157,19 +192,30 @@ model Client {
 }
 
 model Stop {
-  id           String     @id @default(cuid())
-  label        String
-  address      String
-  lat          Float
-  lng          Float
-  reference    String?
-  enterpriseId String
-  enterprise   Enterprise @relation(fields: [enterpriseId], references: [id], onDelete: Cascade)
-  clientId     String?
-  client       Client?    @relation(fields: [clientId], references: [id], onDelete: SetNull)
-  events       Event[]
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  id                String     @id @default(cuid())
+  label             String
+  address           String
+  lat               Float
+  lng               Float
+  reference         String?
+  type              StopType   @default(VISIT)
+  isMain            Boolean    @default(false)
+  isArchived        Boolean    @default(false)
+  phoneNotification String?
+  schedule          String?
+  commentInternal   String?
+  commentDriver     String?
+  tag               String?
+  tagColor          String?
+  fileUrl           String?
+  enterpriseId      String
+  enterprise        Enterprise @relation(fields: [enterpriseId], references: [id], onDelete: Cascade)
+  clientId          String?
+  client            Client?    @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  events            Event[]
+  templateStops     TemplateStop[]
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
 
   @@index([enterpriseId])
   @@index([clientId])
@@ -190,19 +236,34 @@ model ChecklistItem {
 }
 
 model RouteTemplate {
-  id            String     @id @default(cuid())
+  id            String         @id @default(cuid())
   name          String
   polyline      String?
   totalDistance Float?
   totalDuration Int?
   enterpriseId  String
-  enterprise    Enterprise @relation(fields: [enterpriseId], references: [id], onDelete: Cascade)
+  enterprise    Enterprise     @relation(fields: [enterpriseId], references: [id], onDelete: Cascade)
+  clientId      String?
+  client        Client?        @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  stops         TemplateStop[]
   routes        Route[]
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 
   @@index([enterpriseId])
   @@map("route_template")
+}
+
+model TemplateStop {
+  id         String        @id @default(cuid())
+  position   Int
+  templateId String
+  template   RouteTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  stopId     String
+  stop       Stop          @relation(fields: [stopId], references: [id], onDelete: Cascade)
+
+  @@index([templateId])
+  @@map("template_stop")
 }
 
 model Route {
@@ -215,6 +276,16 @@ model Route {
   polyline      String?
   totalDistance Float?
   totalDuration Int?
+  kmInitial     Float?
+  gasInitial    Float?
+  kmFinal       Float?
+  gasFinal      Float?
+  startLat      Float?
+  startLng      Float?
+  finalImg      String?
+  finalLat      Float?
+  finalLng      Float?
+  cancelReason  String?
   enterpriseId  String
   enterprise    Enterprise     @relation(fields: [enterpriseId], references: [id], onDelete: Cascade)
   driverId      String?
@@ -227,12 +298,47 @@ model Route {
   template      RouteTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
   events        Event[]
   checklist     ChecklistEvent[]
+  expenses      Expense[]
+  incidents     Incident[]
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 
   @@index([enterpriseId])
   @@index([driverId])
+  @@index([vehicleId])
   @@map("route")
+}
+
+model Expense {
+  id          String        @id @default(cuid())
+  concept     String
+  paymentType String
+  amount      Float
+  comment     String?
+  imageUrl    String
+  status      ExpenseStatus @default(PENDING)
+  routeId     String
+  route       Route         @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([routeId])
+  @@map("expense")
+}
+
+model Incident {
+  id        String         @id @default(cuid())
+  reason    IncidentReason
+  comment   String?
+  photos    String[]       @default([])
+  lat       Float?
+  lng       Float?
+  routeId   String
+  route     Route          @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  createdAt DateTime       @default(now())
+
+  @@index([routeId])
+  @@map("incident")
 }
 
 model Event {
@@ -248,6 +354,7 @@ model Event {
   evLng          Float?
   comment        String?
   signatureUrl   String?
+  approved       Boolean        @default(false)
   routeId        String
   route          Route          @relation(fields: [routeId], references: [id], onDelete: Cascade)
   stopId         String

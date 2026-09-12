@@ -1,0 +1,120 @@
+<app-page-header title="Reportes" subtitle="Filtrados por día operativo (inicio real o planificado, UTC-6) y por tu empresa">
+  <button class="btn btn-ghost" (click)="exportCsv()"><app-icon name="report" [size]="16" /> Exportar CSV</button>
+</app-page-header>
+
+<div class="toolbar card card-pad">
+  <div class="range">
+    <label class="field">Desde<input type="date" class="input" [(ngModel)]="from" (change)="run()" /></label>
+    <label class="field">Hasta<input type="date" class="input" [(ngModel)]="to" (change)="run()" /></label>
+  </div>
+  <div class="chips">
+    <button class="chip" (click)="preset('today')">Hoy</button>
+    <button class="chip" (click)="preset('yesterday')">Ayer</button>
+    <button class="chip" (click)="preset('week')">7 días</button>
+    <button class="chip" (click)="preset('month')">Este mes</button>
+  </div>
+</div>
+
+<nav class="tabs">
+  @for (t of tabs; track t.key) {
+    <button [class.on]="tab() === t.key" (click)="setTab(t.key)"><app-icon [name]="t.icon" [size]="16" /> {{ t.label }}</button>
+  }
+</nav>
+
+@if (loading()) { <p class="muted">Calculando…</p> }
+
+<!-- ── Paradas ── -->
+@if (tab() === 'stops' && stops(); as r) {
+  <div class="kpis">
+    <div class="kpi"><span>Total paradas</span><strong>{{ r.totals.total }}</strong></div>
+    <div class="kpi ok"><span>Entregadas</span><strong>{{ r.totals.delivered }}</strong><small>{{ pct(r.totals.delivered, r.totals.total) }}%</small></div>
+    <div class="kpi warn"><span>Parciales</span><strong>{{ r.totals.partial }}</strong><small>{{ pct(r.totals.partial, r.totals.total) }}%</small></div>
+    <div class="kpi danger"><span>No entregadas</span><strong>{{ r.totals.notDelivered }}</strong><small>{{ pct(r.totals.notDelivered, r.totals.total) }}%</small></div>
+    <div class="kpi muted"><span>Pendientes</span><strong>{{ r.totals.pending }}</strong></div>
+  </div>
+  <div class="card">
+    @if (!r.rows.length) { <p class="muted empty">Sin paradas en el rango.</p> } @else {
+      <table class="table">
+        <thead><tr><th>Día</th><th>Ruta</th><th>Operador</th><th>#</th><th>Parada</th><th>Tipo</th><th>Estado</th><th>Entrega</th><th>Hora</th><th>Comentario</th></tr></thead>
+        <tbody>
+          @for (x of r.rows; track $index) {
+            <tr>
+              <td class="muted">{{ x.day }}</td>
+              <td><a [routerLink]="['/app/routes', x.routeId]">{{ x.route }}</a></td>
+              <td>{{ x.driver }} <span class="muted tiny">{{ x.plate }}</span></td>
+              <td>{{ x.position }}</td>
+              <td><strong>{{ x.stop }}</strong><br /><span class="muted tiny">{{ x.address }}</span></td>
+              <td>{{ STOP_TYPE_LABEL[x.type] }}</td>
+              <td><span [class]="'badge badge-' + EVENT_BADGE[x.status]">{{ EVENT_LABEL[x.status] }}</span></td>
+              <td>@if (x.deliverStatus !== 'PENDING') { <span [class]="'badge badge-' + DELIVER_BADGE[x.deliverStatus]">{{ DELIVER_LABEL[x.deliverStatus] }}</span> } @else { — }</td>
+              <td>{{ time(x.completedAt) }}</td>
+              <td class="muted">{{ x.comment || '—' }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
+  </div>
+}
+
+<!-- ── Operaciones ── -->
+@if (tab() === 'operations' && ops(); as r) {
+  <div class="kpis">
+    <div class="kpi"><span>Rutas</span><strong>{{ r.totals.routes }}</strong></div>
+    <div class="kpi ok"><span>Cerradas</span><strong>{{ r.totals.completed }}</strong></div>
+    <div class="kpi danger"><span>Canceladas</span><strong>{{ r.totals.cancelled }}</strong></div>
+    <div class="kpi"><span>Km recorridos</span><strong>{{ r.totals.km | number:'1.0-0' }}</strong></div>
+    <div class="kpi warn"><span>Gastos</span><strong>{{ money(r.totals.expenses) }}</strong></div>
+    <div class="kpi danger"><span>Incidencias</span><strong>{{ r.totals.incidents }}</strong></div>
+  </div>
+  <div class="card">
+    @if (!r.rows.length) { <p class="muted empty">Sin rutas en el rango.</p> } @else {
+      <table class="table">
+        <thead><tr><th>Día</th><th>Ruta</th><th>Operador</th><th>Unidad</th><th>Estado</th><th>Inicio real</th><th>Cierre</th><th>Duración</th><th>Paradas</th><th>Km</th><th>Gas (L)</th><th>Gastos</th><th>Inc.</th></tr></thead>
+        <tbody>
+          @for (x of r.rows; track x.routeId) {
+            <tr>
+              <td class="muted">{{ x.day }}</td>
+              <td><a [routerLink]="['/app/routes', x.routeId]">{{ x.route }}</a><br /><span class="muted tiny">{{ x.client }}</span></td>
+              <td>{{ x.driver }}</td>
+              <td>{{ x.plate }}</td>
+              <td><span [class]="'badge badge-' + ROUTE_BADGE[x.status]">{{ ROUTE_LABEL[x.status] }}</span></td>
+              <td>{{ dateTime(x.dateStarted) }}</td>
+              <td>{{ dateTime(x.dateCompleted) }}</td>
+              <td>{{ x.durationMin != null ? x.durationMin + ' min' : '—' }}</td>
+              <td>{{ x.stopsDone }}/{{ x.stops }}</td>
+              <td>{{ x.kmTraveled != null ? x.kmTraveled : '—' }}</td>
+              <td>{{ x.gasInitial || '—' }} → {{ x.gasFinal || '—' }}</td>
+              <td>{{ x.expenses ? money(x.expenses) : '—' }}</td>
+              <td>{{ x.incidents || '—' }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
+  </div>
+}
+
+<!-- ── Incidencias ── -->
+@if (tab() === 'incidents') {
+  <div class="card">
+    @if (!incidents().length) { <p class="muted empty">Sin incidencias el {{ to }}.</p> } @else {
+      <table class="table">
+        <thead><tr><th>Hora</th><th>Ruta</th><th>Operador</th><th>Motivo</th><th>Comentario</th><th>Fotos</th><th>GPS</th></tr></thead>
+        <tbody>
+          @for (i of incidents(); track i.id) {
+            <tr>
+              <td>{{ dateTime(i.createdAt) }}</td>
+              <td><a [routerLink]="['/app/routes', i.route?.id]">{{ i.route?.name }}</a></td>
+              <td>{{ i.route?.driver?.name || '—' }}</td>
+              <td><span class="badge badge-danger">{{ INCIDENT_LABEL[i.reason] }}</span></td>
+              <td>{{ i.comment || '—' }}</td>
+              <td>{{ i.photos.length }}</td>
+              <td class="muted tiny">{{ i.lat ? (i.lat | number:'1.4-4') + ', ' + (i.lng | number:'1.4-4') : '—' }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
+  </div>
+}

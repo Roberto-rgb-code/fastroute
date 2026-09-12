@@ -1,41 +1,157 @@
-<div class="shell">
-  <aside class="sidebar">
-    <div class="brand">
-      <div class="logo">FR</div>
-      <div class="brand-text">
-        <strong>FastRoute</strong>
-        <span>{{ auth.user()?.enterpriseName || 'Logística' }}</span>
-      </div>
+<div class="flex min-h-screen bg-ink-50">
+  @if (mobileOpen()) {
+    <div class="fixed inset-0 z-40 bg-ink-900/50 min-[961px]:hidden" (click)="closeMobile()"></div>
+  }
+
+  <aside
+    class="fixed inset-y-0 left-0 z-50 flex -translate-x-full shrink-0 flex-col overflow-hidden border-r border-white/5 bg-sidebar text-[#c7d0df] transition-[width,transform] duration-200 min-[961px]:sticky min-[961px]:z-30 min-[961px]:translate-x-0"
+    [class.w-64]="!rail()"
+    [class.w-[72px]]="rail()"
+    [class.translate-x-0]="mobileOpen()"
+    aria-label="Navegación principal"
+  >
+    <div class="flex items-center gap-2.5 px-3 py-3" [class.flex-col]="rail()" [class.px-2]="rail()">
+      <div class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-sm font-extrabold text-white shadow-[0_6px_16px_rgba(99,102,241,0.35)]">FR</div>
+      @if (!rail()) {
+        <div class="min-w-0 flex-1 leading-tight">
+          <strong class="block truncate text-base text-white">FastRoute</strong>
+          <span class="block truncate text-[11px] text-[#7c8aa5]">{{ auth.enterpriseLabel() }}</span>
+        </div>
+      }
+      <button
+        type="button"
+        class="hidden rounded-lg p-1.5 text-[#7c8aa5] hover:bg-white/6 hover:text-white min-[961px]:grid"
+        [class.rotate-180]="rail()"
+        (click)="toggleCollapsed()"
+        [title]="collapsed() ? 'Expandir menú' : 'Contraer menú'"
+      >
+        <app-icon name="collapse" [size]="18" />
+      </button>
     </div>
 
-    <nav>
-      @for (item of nav; track item.path) {
-        <a [routerLink]="item.path" routerLinkActive="active">
-          <app-icon [name]="item.icon" [size]="20" />
-          <span>{{ item.label }}</span>
-        </a>
-      }
-      @if (auth.isSuper()) {
-        <a routerLink="/super/enterprises" routerLinkActive="active" class="super-link">
-          <app-icon name="building" [size]="20" />
-          <span>Super Admin</span>
-        </a>
+    <nav class="flex flex-1 flex-col gap-1 overflow-y-auto px-2.5 pb-4">
+      @for (g of visibleGroups(); track g.id) {
+        <section>
+          <button
+            type="button"
+            class="flex w-full items-center gap-2 rounded-[10px] px-2 py-2 text-left text-[11px] font-bold uppercase tracking-[0.08em] text-[#7c8aa5] hover:text-white"
+            [class.justify-center]="rail()"
+            (click)="toggleGroup(g.id)"
+            [attr.aria-expanded]="isOpen(g.id) || rail()"
+            [title]="g.label"
+          >
+            @if (rail()) {
+              <app-icon [name]="g.icon" [size]="18" />
+            } @else {
+              <span class="flex-1">{{ g.label }}</span>
+              <app-icon name="chevron-down" [size]="16" class="transition-transform" [class.-rotate-90]="!isOpen(g.id)" />
+            }
+          </button>
+          <div class="grid transition-[grid-template-rows] duration-200" [class.grid-rows-[0fr]]="!isOpen(g.id) && !rail()" [class.grid-rows-[1fr]]="isOpen(g.id) || rail()">
+            <div class="overflow-hidden">
+              @for (item of g.items; track item.path) {
+                <a
+                  [routerLink]="item.path"
+                  routerLinkActive="bg-gradient-to-r from-brand-600 to-brand-500 text-white shadow-[0_6px_16px_rgba(79,70,229,0.35)]"
+                  (click)="closeMobile()"
+                  [title]="item.label"
+                  class="relative my-0.5 flex items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-sm font-medium text-[#c7d0df] hover:bg-white/6 hover:text-white"
+                  [class.justify-center]="rail()"
+                  [class.px-0]="rail()"
+                >
+                  <app-icon [name]="item.icon" [size]="18" />
+                  @if (!rail()) {
+                    <span class="flex-1 truncate">{{ item.label }}</span>
+                  }
+                  @if (item.badge && item.badge()) {
+                    <span
+                      class="rounded-full bg-warn px-1.5 text-[10px] font-extrabold text-white"
+                      [class.absolute]="rail()"
+                      [class.right-1]="rail()"
+                      [class.top-1]="rail()"
+                    >{{ item.badge() }}</span>
+                  }
+                </a>
+              }
+            </div>
+          </div>
+        </section>
       }
     </nav>
 
-    <div class="user">
-      <div class="avatar">{{ initials }}</div>
-      <div class="user-info">
-        <strong>{{ auth.user()?.name }}</strong>
-        <span>{{ auth.user()?.role }}</span>
-      </div>
-      <button class="icon-btn" (click)="logout()" title="Salir">
-        <app-icon name="logout" [size]="18" />
-      </button>
+    <div class="mx-2.5 mb-3 flex items-center gap-2 rounded-xl border border-white/5 bg-white/4 p-2" [class.justify-center]="rail()">
+      <div class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-brand-600 text-xs font-bold text-white">{{ initials }}</div>
+      @if (!rail()) {
+        <div class="min-w-0 flex-1 leading-tight">
+          <strong class="block truncate text-sm text-white">{{ auth.user()?.name }}</strong>
+          <span class="text-[11px] text-[#7c8aa5]">{{ ROLE_LABEL[auth.user()?.role || ''] }}</span>
+        </div>
+        <button type="button" class="rounded-lg p-1.5 text-[#7c8aa5] hover:bg-white/8 hover:text-white" (click)="logout()" title="Cerrar sesión">
+          <app-icon name="logout" [size]="18" />
+        </button>
+      }
     </div>
   </aside>
 
-  <main class="content">
-    <router-outlet />
-  </main>
+  <div class="flex min-h-screen min-w-0 flex-1 flex-col">
+    <header class="sticky top-0 z-20 flex h-[58px] items-center gap-4 border-b border-ink-200 bg-white/85 px-4 backdrop-blur-md min-[961px]:px-6">
+      <button type="button" class="grid rounded-lg p-2 text-ink-500 hover:bg-ink-100 hover:text-ink-900 min-[961px]:hidden" (click)="toggleMobile()" title="Menú">
+        <app-icon name="menu" [size]="22" />
+      </button>
+
+      <div class="flex min-w-0 flex-1 items-center gap-3">
+        @if (auth.isSuper()) {
+          <label class="flex items-center gap-1.5 text-ink-500" title="Empresa activa">
+            <app-icon name="building" [size]="16" />
+            <select class="rounded-lg bg-ink-100 px-2 py-1 text-sm font-semibold text-ink-900" [ngModel]="auth.activeEnterpriseId()" (ngModelChange)="switchEnterprise($event)">
+              @for (e of enterprises(); track e.id) {
+                <option [value]="e.id">{{ e.name }}</option>
+              }
+            </select>
+          </label>
+        } @else {
+          <span class="truncate font-bold text-ink-900">{{ auth.enterpriseLabel() }}</span>
+        }
+        @if (today()) {
+          <span class="hidden items-center gap-1 rounded-full bg-brand-50 px-2.5 py-1 text-xs font-semibold capitalize text-brand-700 sm:inline-flex" title="Día operativo (UTC-6)">
+            <app-icon name="calendar" [size]="14" />
+            {{ formatDay(today()) }}
+          </span>
+        }
+      </div>
+
+      <div class="flex items-center gap-2">
+        @if (pendingApprovals()) {
+          <a class="relative grid rounded-lg p-2 text-ink-500 hover:bg-ink-100 hover:text-ink-900" routerLink="/app/routes" [queryParams]="{ approvals: 1 }" title="Aprobaciones pendientes">
+            <app-icon name="bell" [size]="20" />
+            <span class="absolute right-0.5 top-0.5 min-w-4 rounded-full bg-danger px-1 text-center text-[10px] font-extrabold text-white">{{ pendingApprovals() }}</span>
+          </a>
+        }
+        <div class="relative">
+          <button type="button" class="flex items-center gap-2 rounded-full px-1 py-1 pr-2 text-sm font-semibold text-ink-700 hover:bg-ink-100" (click)="toggleUserMenu()">
+            <span class="grid h-8 w-8 place-items-center rounded-full bg-brand-600 text-[11px] font-bold text-white">{{ initials }}</span>
+            <span class="hidden max-w-[140px] truncate sm:inline">{{ auth.user()?.name }}</span>
+            <app-icon name="chevron-down" [size]="16" />
+          </button>
+          @if (userMenu()) {
+            <div class="absolute right-0 top-[calc(100%+8px)] z-30 flex w-60 flex-col rounded-xl border border-ink-200 bg-white p-1 shadow-[0_20px_45px_rgba(15,23,42,0.18)]" (click)="userMenu.set(false)">
+              <div class="mb-1 flex flex-col border-b border-ink-100 px-3 py-2">
+                <strong class="text-sm">{{ auth.user()?.name }}</strong>
+                <span class="text-xs text-ink-500">{{ auth.user()?.email }}</span>
+              </div>
+              @if (auth.isAdmin()) {
+                <a class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-ink-700 hover:bg-ink-50" routerLink="/app/settings"><app-icon name="settings" [size]="16" /> Configuración</a>
+                <a class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-ink-700 hover:bg-ink-50" routerLink="/app/users"><app-icon name="users" [size]="16" /> Usuarios</a>
+              }
+              <button type="button" class="flex items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-ink-700 hover:bg-ink-50" (click)="logout()"><app-icon name="logout" [size]="16" /> Cerrar sesión</button>
+            </div>
+          }
+        </div>
+      </div>
+    </header>
+
+    <main class="mx-auto w-full max-w-[1500px] flex-1 px-8 pb-10 pt-7 max-[960px]:px-5 max-[960px]:py-5">
+      <router-outlet />
+    </main>
+  </div>
 </div>

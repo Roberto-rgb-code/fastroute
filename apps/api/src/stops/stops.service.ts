@@ -7,10 +7,16 @@ import { UpdateStopDto } from './dto/update-stop.dto';
 export class StopsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  list(enterpriseId: string, clientId?: string) {
+  /** RN-STP-03: por defecto oculta archivadas; `includeArchived` para el catálogo completo. */
+  list(enterpriseId: string, clientId?: string, includeArchived = false) {
     return this.prisma.stop.findMany({
-      where: { enterpriseId, clientId: clientId ?? undefined },
-      orderBy: { label: 'asc' },
+      where: {
+        enterpriseId,
+        clientId: clientId ?? undefined,
+        isArchived: includeArchived ? undefined : false,
+      },
+      orderBy: [{ isMain: 'desc' }, { label: 'asc' }],
+      include: { client: { select: { id: true, name: true } }, _count: { select: { events: true } } },
     });
   }
 
@@ -22,7 +28,12 @@ export class StopsService {
     return this.prisma.stop.update({ where: { id, enterpriseId }, data: dto });
   }
 
-  remove(enterpriseId: string, id: string) {
+  /** Archivar en lugar de borrar cuando tiene historial (RN-STP-03). */
+  async remove(enterpriseId: string, id: string) {
+    const used = await this.prisma.event.count({ where: { stopId: id } });
+    if (used > 0) {
+      return this.prisma.stop.update({ where: { id, enterpriseId }, data: { isArchived: true } });
+    }
     return this.prisma.stop.delete({ where: { id, enterpriseId } });
   }
 }

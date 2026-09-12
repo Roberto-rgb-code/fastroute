@@ -14,6 +14,9 @@ export class ConfigController {
       mapbox: {
         token: this.config.get<string>('MAPBOX_ACCESS_TOKEN') ?? '',
       },
+      googleMaps: {
+        apiKey: this.config.get<string>('GOOGLE_MAPS_API_KEY') ?? '',
+      },
       pusher: {
         key: this.config.get<string>('PUSHER_KEY') ?? '',
         cluster: this.config.get<string>('PUSHER_CLUSTER', 'us2'),
