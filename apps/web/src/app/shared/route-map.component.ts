@@ -30,6 +30,8 @@ type MapMode = '2d' | '3d' | 'satellite';
 
 /** Guadalajara — demo por defecto. */
 const DEFAULT_CENTER: [number, number] = [-103.3496, 20.6597];
+/** Estilo tipo demo Mapbox “Wind Speed” (satélite + partículas). */
+const WIND_SCENE_STYLE = 'mapbox://styles/mapbox/satellite-streets-v12';
 
 @Component({
   selector: 'app-route-map',
@@ -93,7 +95,13 @@ const DEFAULT_CENTER: [number, number] = [-103.3496, 20.6597];
             <app-icon name="wind" [size]="16" />
             <span>{{ w.windKmh | number: '1.0-0' }} km/h · {{ windDirLabel(w.windDir) }}</span>
           </div>
-          <span class="text-[10px] font-normal text-sky-100/85">Partículas Open-Meteo · GFS Mapbox no disponible en este token</span>
+          <span class="text-[10px] font-normal text-sky-100/85">
+            @if (windGfs()) {
+              GFS Mapbox · raster-particle
+            } @else {
+              Vivid Open-Meteo (GFS no disponible en este token)
+            }
+          </span>
         </div>
       }
       @if (loadError()) {
@@ -119,6 +127,7 @@ export class RouteMapComponent implements AfterViewInit, OnDestroy {
   readonly loadError = signal<string | null>(null);
   readonly trafficOn = signal(false);
   readonly windOn = signal(false);
+  readonly windGfs = signal(false);
   readonly windInfo = signal<{ windKmh: number; windDir: number | null } | null>(null);
 
   readonly modes: { id: MapMode; label: string }[] = [
@@ -139,6 +148,8 @@ export class RouteMapComponent implements AfterViewInit, OnDestroy {
   private windMoveTimer?: ReturnType<typeof setTimeout>;
   private windOverlay?: WindParticleOverlay;
   private windResizeHandler?: () => void;
+  private modeBeforeWind: MapMode | null = null;
+  private windEnabling = false;
 
   constructor() {
     effect(() => {
@@ -230,27 +241,76 @@ export class RouteMapComponent implements AfterViewInit, OnDestroy {
   }
 
   toggleWind() {
-    if (!this.map) return;
+    if (!this.map || this.windEnabling) return;
     const next = !this.windOn();
     if (!next) {
-      this.windOn.set(false);
-      this.windInfo.set(null);
-      this.detachWindMove();
-      this.stopWindOverlay();
-      this.maps.clearWindGfs(this.map);
+      void this.disableWind();
       return;
     }
+    void this.enableWind();
+  }
+
+  private async enableWind() {
+    const map = this.map;
+    if (!map) return;
+    this.windEnabling = true;
     this.windOn.set(true);
-    this.maps.clearWindGfs(this.map);
-    this.startWindOverlay();
-    void this.refreshWind();
+    this.modeBeforeWind = this.mode();
+    if (this.modeBeforeWind !== 'satellite') {
+      await this.applyMapStyle(WIND_SCENE_STYLE);
+    }
+    const gfsOk = await this.maps.probeGfsWindAccess();
+    if (gfsOk) {
+      this.stopWindOverlay();
+      this.maps.setWind(map, true, map.getLayer('fr-route-halo') ? 'fr-route-halo' : undefined);
+      this.windGfs.set(true);
+    } else {
+      this.maps.clearWindGfs(map);
+      this.windGfs.set(false);
+      this.startWindOverlay();
+    }
+    await this.refreshWind();
     this.attachWindMove();
+    this.windEnabling = false;
+  }
+
+  private async disableWind() {
+    const map = this.map;
+    this.windOn.set(false);
+    this.windGfs.set(false);
+    this.windInfo.set(null);
+    this.detachWindMove();
+    this.stopWindOverlay();
+    if (map) this.maps.clearWindGfs(map);
+    const prevMode = this.modeBeforeWind;
+    this.modeBeforeWind = null;
+    if (map && prevMode && prevMode !== 'satellite') {
+      await this.applyMapStyle(this.baseStyle);
+    }
+    if (prevMode) {
+      this.mode.set(prevMode);
+      this.applyCamera(prevMode);
+    }
+  }
+
+  private applyMapStyle(style: string): Promise<void> {
+    const map = this.map;
+    if (!map) return Promise.resolve();
+    return new Promise((resolve) => {
+      map.setStyle(style);
+      map.once('style.load', () => {
+        map.resize();
+        this.reapplyOverlays(false);
+        void this.draw(this.points());
+        resolve();
+      });
+    });
   }
 
   private startWindOverlay() {
     const shell = this.host.nativeElement.parentElement;
     if (!shell || this.windOverlay) return;
-    this.windOverlay = new WindParticleOverlay(shell, 850);
+    this.windOverlay = new WindParticleOverlay(shell, 2800);
     this.windOverlay.start();
     if (this.map && !this.windResizeHandler) {
       this.windResizeHandler = () => this.windOverlay?.resize();
@@ -293,10 +353,12 @@ export class RouteMapComponent implements AfterViewInit, OnDestroy {
       this.loadError.set(null);
     } catch {
       this.loadError.set('No se pudo cargar el viento (Open-Meteo).');
-      this.windOn.set(false);
-      this.windInfo.set(null);
-      this.detachWindMove();
-      this.stopWindOverlay();
+      if (!this.windGfs()) {
+        this.windOn.set(false);
+        this.windInfo.set(null);
+        this.detachWindMove();
+        this.stopWindOverlay();
+      }
     }
   }
 
@@ -309,8 +371,8 @@ export class RouteMapComponent implements AfterViewInit, OnDestroy {
     centerDir: number | null;
   }> {
     const map = this.map!;
-    const cols = 3;
-    const rows = 3;
+    const cols = 5;
+    const rows = 5;
     const b = map.getBounds();
     if (!b) {
       const c = map.getCenter();
@@ -348,7 +410,7 @@ export class RouteMapComponent implements AfterViewInit, OnDestroy {
     let centerDir: number | null = null;
     for (const s of samples) {
       grid[s.r * cols + s.c] = s.cell;
-      if (s.r === 1 && s.c === 1) {
+      if (s.r === Math.floor(rows / 2) && s.c === Math.floor(cols / 2)) {
         centerKmh = s.cell.speedKmh;
         centerDir = s.windDir;
       }
@@ -363,12 +425,20 @@ export class RouteMapComponent implements AfterViewInit, OnDestroy {
     return labels[i];
   }
 
-  /** Re-pinta las capas overlay tras un cambio de estilo (setStyle las borra). */
-  private reapplyOverlays() {
+  /** Re-pinta capas overlay tras setStyle (tráfico / viento GFS). */
+  private reapplyOverlays(refreshWindField = true) {
     if (!this.map) return;
-    this.maps.clearWindGfs(this.map);
+    if (this.windOn()) {
+      if (this.windGfs()) {
+        this.maps.setWind(this.map, true, this.map.getLayer('fr-route-halo') ? 'fr-route-halo' : undefined);
+      } else if (!this.windOverlay) {
+        this.startWindOverlay();
+      }
+    } else {
+      this.maps.clearWindGfs(this.map);
+    }
     if (this.trafficOn()) this.maps.setTraffic(this.map, true);
-    if (this.windOn()) void this.refreshWind();
+    if (refreshWindField && this.windOn() && !this.windGfs()) void this.refreshWind();
   }
 
   private applyCamera(m: MapMode) {

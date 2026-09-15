@@ -242,8 +242,105 @@ export class MapService {
     }
   }
 
-  // ── Viento: ya no usamos mapbox.gfs-winds (404 en tokens sin acceso GFS). ──
-  /** Limpia restos de capas GFS por si quedaron de versiones anteriores. */
+  // ── Viento GFS (raster-particle) — demo Mapbox ─────────────────────────────
+  /** @see https://docs.mapbox.com/mapbox-gl-js/example/raster-particle-layer/ */
+  private static readonly GFS_WIND_TILESET = 'mapbox://rasterarrayexamples.gfs-winds';
+
+  private static readonly GFS_PARTICLE_PAINT: Record<string, unknown> = {
+    'raster-particle-speed-factor': 0.4,
+    'raster-particle-fade-opacity-factor': 0.9,
+    'raster-particle-reset-rate-factor': 0.4,
+    'raster-particle-count': 2800,
+    'raster-particle-max-speed': 40,
+    'raster-particle-color': [
+      'interpolate',
+      ['linear'],
+      ['raster-particle-speed'],
+      1.5,
+      'rgba(134,163,171,256)',
+      2.5,
+      'rgba(126,152,188,256)',
+      4.12,
+      'rgba(110,143,208,256)',
+      6.17,
+      'rgba(15,147,167,256)',
+      9.26,
+      'rgba(57,163,57,256)',
+      11.83,
+      'rgba(194,134,62,256)',
+      14.92,
+      'rgba(200,66,13,256)',
+      18.0,
+      'rgba(210,0,50,256)',
+      25.21,
+      'rgba(117,74,147,256)',
+      33.44,
+      'rgba(194,251,119,256)',
+      50.41,
+      'rgba(256,256,256,256)',
+    ],
+  };
+
+  /** Comprueba si el token puede leer al menos un tile MRT del ejemplo GFS. */
+  async probeGfsWindAccess(): Promise<boolean> {
+    const token = this.token();
+    if (!token) return false;
+    try {
+      const metaRes = await fetch(
+        `https://api.mapbox.com/v4/rasterarrayexamples.gfs-winds.json?access_token=${token}`,
+      );
+      if (!metaRes.ok) return false;
+      const meta = (await metaRes.json()) as {
+        raster_layers?: { fields?: { current_job_id?: string } }[];
+      };
+      const jobid = meta.raster_layers?.[0]?.fields?.current_job_id;
+      if (!jobid) return false;
+      const tileRes = await fetch(
+        `https://api.mapbox.com/rasterarrays/v1/rasterarrayexamples.gfs-winds/2/1/1.mrt?jobid=${jobid}&access_token=${token}`,
+      );
+      return tileRes.ok;
+    } catch {
+      return false;
+    }
+  }
+
+  setWind(map: mapboxgl.Map, on: boolean, beforeLayerId?: string): void {
+    const SRC = 'fr-wind';
+    const LYR = 'fr-wind-particles';
+    if (!on) {
+      this.clearWindGfs(map);
+      return;
+    }
+    const add = () => {
+      if (!map.getSource(SRC)) {
+        map.addSource(SRC, {
+          type: 'raster-array',
+          url: MapService.GFS_WIND_TILESET,
+          tileSize: 512,
+        } as mapboxgl.RasterArraySourceSpecification);
+      }
+      if (!map.getLayer(LYR)) {
+        const spec = {
+          id: LYR,
+          type: 'raster-particle',
+          source: SRC,
+          'source-layer': '10winds',
+          paint: MapService.GFS_PARTICLE_PAINT,
+        } as mapboxgl.LayerSpecification;
+        if (beforeLayerId && map.getLayer(beforeLayerId)) {
+          map.addLayer(spec, beforeLayerId);
+        } else {
+          map.addLayer(spec);
+        }
+      }
+    };
+    if (!map.isStyleLoaded()) {
+      map.once('idle', add);
+      return;
+    }
+    add();
+  }
+
   clearWindGfs(map: mapboxgl.Map) {
     const SRC = 'fr-wind';
     const LYR = 'fr-wind-particles';
