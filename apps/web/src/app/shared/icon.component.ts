@@ -53,6 +53,14 @@ const ICONIFY: Record<string, string> = {
   gas: 'solar:gas-station-bold-duotone',
   speed: 'solar:speedometer-bold-duotone',
   sign: 'solar:signpost-bold-duotone',
+  // Módulos inspiración Yuke + features Mapbox
+  weather: 'solar:cloud-sun-bold-duotone',
+  wind: 'solar:wind-bold-duotone',
+  danger: 'solar:shield-warning-bold-duotone',
+  message: 'solar:chat-round-dots-bold-duotone',
+  history: 'solar:history-bold-duotone',
+  navigation: 'solar:routing-bold-duotone',
+  tracking: 'solar:streets-navigation-bold-duotone',
 };
 
 /** Colección line-md en Icônes — animación de trazo. */
@@ -61,12 +69,12 @@ const LINE_MD: Record<string, string> = {
   route: 'line-md:navigation-right-up',
   template: 'line-md:document-list',
   map: 'line-md:map-marker-radius',
-  report: 'line-md:chart',
+  report: 'line-md:text-box-multiple',
   pin: 'line-md:map-marker',
   driver: 'line-md:account',
   vehicle: 'line-md:speedometer',
   client: 'line-md:briefcase',
-  users: 'line-md:account-multiple',
+  users: 'line-md:account-add',
   settings: 'line-md:cog',
   building: 'line-md:home',
   package: 'line-md:document-code',
@@ -96,7 +104,7 @@ const LINE_MD: Record<string, string> = {
   checklist: 'line-md:clipboard-list',
   gas: 'line-md:speedometer',
   speed: 'line-md:speedometer',
-  sign: 'line-md:navigation-right',
+  sign: 'line-md:navigation-right-up',
   'trend-up': 'line-md:arrow-up',
   'trend-down': 'line-md:arrow-down',
   whatsapp: 'logos:whatsapp-icon',
@@ -104,6 +112,12 @@ const LINE_MD: Record<string, string> = {
   more: 'line-md:menu',
   clock: 'line-md:watch',
   flag: 'line-md:map-marker',
+  // Módulos inspiración Yuke + features Mapbox (los que no tienen line-md caen a solar)
+  weather: 'line-md:cloud',
+  danger: 'line-md:alert-square',
+  message: 'line-md:chat',
+  navigation: 'line-md:navigation-right-up',
+  tracking: 'line-md:map-marker-radius',
 };
 
 @Component({

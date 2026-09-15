@@ -1,7 +1,9 @@
-/* Layout a pantalla completa dentro del shell */
+/* Layout a pantalla completa dentro del shell.
+   El <main> ya quita su padding para este componente (shell.component.html),
+   así que aquí NO usamos márgenes negativos: solo ocupamos el alto disponible. */
 :host {
   display: block;
-  margin: -1.25rem -1.5rem -2rem;
+  margin: 0;
   height: calc(100vh - 58px);
   --list-w: 340px;
   --rail-w: 48px;
@@ -27,7 +29,7 @@ app-route-map {
 
 @media (max-width: 960px) {
   :host {
-    margin: -1rem;
+    margin: 0;
     height: calc(100vh - 58px);
   }
   .ws,
