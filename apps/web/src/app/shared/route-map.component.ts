@@ -208,6 +208,10 @@ export class RouteMapComponent implements AfterViewInit, OnDestroy {
   }
 
   setMode(m: MapMode) {
+    if (this.windOn() && m !== 'satellite') {
+      void this.disableWind().then(() => this.setMode(m));
+      return;
+    }
     this.mode.set(m);
     const map = this.map;
     if (!map) return;
@@ -254,24 +258,41 @@ export class RouteMapComponent implements AfterViewInit, OnDestroy {
     const map = this.map;
     if (!map) return;
     this.windEnabling = true;
-    this.windOn.set(true);
-    this.modeBeforeWind = this.mode();
-    if (this.modeBeforeWind !== 'satellite') {
-      await this.applyMapStyle(WIND_SCENE_STYLE);
+    try {
+      this.modeBeforeWind = this.mode();
+      if (this.modeBeforeWind !== 'satellite') {
+        await this.applyMapStyle(WIND_SCENE_STYLE);
+      }
+      this.mode.set('satellite');
+
+      const center = map.getCenter();
+      const seed = await firstValueFrom(this.api.weather(center.lat, center.lng));
+      this.windInfo.set({
+        windKmh: seed.now.windKmh ?? 0,
+        windDir: seed.now.windDir,
+      });
+
+      const gfsOk = await this.maps.probeGfsWindAccess();
+      if (gfsOk) {
+        this.stopWindOverlay();
+        this.maps.setWind(map, true, map.getLayer('fr-route-halo') ? 'fr-route-halo' : undefined);
+        this.windGfs.set(true);
+      } else {
+        this.maps.clearWindGfs(map);
+        this.windGfs.set(false);
+        this.startWindOverlay();
+        this.windOverlay?.setUniform(seed.now.windKmh ?? 8, seed.now.windDir);
+      }
+
+      this.windOn.set(true);
+      void this.refreshWind();
+      this.attachWindMove();
+    } catch {
+      this.loadError.set('No se pudo activar la capa de viento.');
+      await this.disableWind();
+    } finally {
+      this.windEnabling = false;
     }
-    const gfsOk = await this.maps.probeGfsWindAccess();
-    if (gfsOk) {
-      this.stopWindOverlay();
-      this.maps.setWind(map, true, map.getLayer('fr-route-halo') ? 'fr-route-halo' : undefined);
-      this.windGfs.set(true);
-    } else {
-      this.maps.clearWindGfs(map);
-      this.windGfs.set(false);
-      this.startWindOverlay();
-    }
-    await this.refreshWind();
-    this.attachWindMove();
-    this.windEnabling = false;
   }
 
   private async disableWind() {
@@ -308,9 +329,9 @@ export class RouteMapComponent implements AfterViewInit, OnDestroy {
   }
 
   private startWindOverlay() {
-    const shell = this.host.nativeElement.parentElement;
-    if (!shell || this.windOverlay) return;
-    this.windOverlay = new WindParticleOverlay(shell, 2800);
+    const mount = this.map?.getContainer() ?? this.host.nativeElement.parentElement;
+    if (!mount || this.windOverlay) return;
+    this.windOverlay = new WindParticleOverlay(mount, 2800);
     this.windOverlay.start();
     if (this.map && !this.windResizeHandler) {
       this.windResizeHandler = () => this.windOverlay?.resize();
@@ -349,15 +370,19 @@ export class RouteMapComponent implements AfterViewInit, OnDestroy {
     try {
       const field = await this.fetchWindField();
       this.windInfo.set({ windKmh: field.centerKmh, windDir: field.centerDir });
-      this.windOverlay?.setField(field.cols, field.rows, field.grid);
+      if (!this.windGfs()) {
+        this.windOverlay?.setField(field.cols, field.rows, field.grid);
+      }
       this.loadError.set(null);
     } catch {
-      this.loadError.set('No se pudo cargar el viento (Open-Meteo).');
-      if (!this.windGfs()) {
-        this.windOn.set(false);
-        this.windInfo.set(null);
-        this.detachWindMove();
-        this.stopWindOverlay();
+      // Mantener animación con el último campo; no apagar viento ni dejar satélite “colgado”.
+      if (!this.windGfs() && this.windOverlay) {
+        const c = this.map.getCenter();
+        const w = await firstValueFrom(this.api.weather(c.lat, c.lng)).catch(() => null);
+        if (w) {
+          this.windInfo.set({ windKmh: w.now.windKmh ?? 0, windDir: w.now.windDir });
+          this.windOverlay.setUniform(w.now.windKmh ?? 8, w.now.windDir);
+        }
       }
     }
   }
@@ -371,8 +396,8 @@ export class RouteMapComponent implements AfterViewInit, OnDestroy {
     centerDir: number | null;
   }> {
     const map = this.map!;
-    const cols = 5;
-    const rows = 5;
+    const cols = 3;
+    const rows = 3;
     const b = map.getBounds();
     if (!b) {
       const c = map.getCenter();
@@ -400,20 +425,25 @@ export class RouteMapComponent implements AfterViewInit, OnDestroy {
         );
       }
     }
-    const samples = await Promise.all(tasks);
+    const settled = await Promise.allSettled(tasks);
     const grid: WindFieldCell[] = Array.from({ length: rows * cols }, () => ({
       u: 0.1,
       v: 0,
-      speedKmh: 0,
+      speedKmh: 8,
     }));
-    let centerKmh = 0;
+    let centerKmh = 8;
     let centerDir: number | null = null;
-    for (const s of samples) {
+    settled.forEach((result) => {
+      if (result.status !== 'fulfilled') return;
+      const s = result.value;
       grid[s.r * cols + s.c] = s.cell;
-      if (s.r === Math.floor(rows / 2) && s.c === Math.floor(cols / 2)) {
+      if (s.r === 1 && s.c === 1) {
         centerKmh = s.cell.speedKmh;
         centerDir = s.windDir;
       }
+    });
+    if (settled.every((r) => r.status === 'rejected')) {
+      throw new Error('weather grid failed');
     }
     return { cols, rows, grid, centerKmh, centerDir };
   }

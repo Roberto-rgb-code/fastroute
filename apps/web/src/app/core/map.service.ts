@@ -97,7 +97,9 @@ export class MapService {
     map.on('error', (ev: mapboxgl.ErrorEvent) => {
       const msg = String(ev.error?.message ?? ev.error ?? '');
       if (fellBack || !msg) return;
-      if (/style|sprite|glyph|tile|401|403|worker/i.test(msg)) {
+      // No revertir el estilo por tiles sueltos (p. ej. raster-array GFS 404).
+      if (/rasterarray|gfs-wind|\.mrt/i.test(msg)) return;
+      if (/style|sprite|glyph|401|403|worker/i.test(msg) && !/source/i.test(msg)) {
         fellBack = true;
         map.setStyle(MAPBOX_GL_FALLBACK_STYLE);
       }

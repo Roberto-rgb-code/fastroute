@@ -28,13 +28,13 @@ export class WindParticleOverlay {
 
     this.dimmer = document.createElement('div');
     this.dimmer.className =
-      'pointer-events-none absolute inset-0 z-[4] bg-gradient-to-b from-slate-950/70 via-slate-900/55 to-slate-950/65';
+      'pointer-events-none absolute inset-0 z-[1] bg-gradient-to-b from-slate-950/70 via-slate-900/55 to-slate-950/65';
     this.dimmer.setAttribute('aria-hidden', 'true');
     parent.appendChild(this.dimmer);
 
     this.canvas = document.createElement('canvas');
-    this.canvas.className = 'pointer-events-none absolute inset-0 z-[5] h-full w-full';
-    this.canvas.style.mixBlendMode = 'screen';
+    this.canvas.className = 'pointer-events-none absolute inset-0 z-[2] h-full w-full';
+    this.canvas.style.mixBlendMode = 'plus-lighter';
     this.canvas.setAttribute('aria-hidden', 'true');
     parent.appendChild(this.canvas);
 
@@ -56,6 +56,11 @@ export class WindParticleOverlay {
     this.cols = Math.max(1, cols);
     this.rows = Math.max(1, rows);
     this.grid = grid.length ? grid : [{ u: 0.15, v: 0, speedKmh: 10 }];
+  }
+
+  setUniform(speedKmh: number, windFromDeg: number | null) {
+    const { u, v } = WindParticleOverlay.vectorFromMeteo(speedKmh, windFromDeg);
+    this.setField(1, 1, [{ u, v, speedKmh }]);
   }
 
   resize() {
