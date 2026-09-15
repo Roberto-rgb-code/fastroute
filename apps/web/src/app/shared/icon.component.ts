@@ -55,7 +55,7 @@ const ICONIFY: Record<string, string> = {
   sign: 'solar:signpost-bold-duotone',
   // Módulos inspiración Yuke + features Mapbox
   weather: 'solar:cloud-sun-bold-duotone',
-  wind: 'solar:wind-bold-duotone',
+  wind: 'mdi:weather-windy',
   danger: 'solar:shield-warning-bold-duotone',
   message: 'solar:chat-round-dots-bold-duotone',
   history: 'solar:history-bold-duotone',
@@ -181,9 +181,7 @@ export class IconComponent {
 
   replay() {
     if (!this.animated) return;
-    this.tick = -1;
-    void Promise.resolve().then(() => {
-      this.tick = (this.tick < 0 ? 0 : this.tick) + 1;
-    });
+    // No usar tick=-1: vacía el DOM (@if tick>=0) y deja el botón en blanco un frame.
+    this.tick++;
   }
 }

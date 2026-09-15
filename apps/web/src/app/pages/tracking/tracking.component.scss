@@ -1,3 +1,29 @@
 :host {
-  display: block;
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 58px);
+  min-height: 0;
+  background: #fff;
+}
+
+.tracking-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  min-height: 0;
+}
+
+.tracking-map {
+  position: relative;
+}
+
+@media (max-width: 960px) {
+  :host {
+    height: auto;
+    min-height: calc(100vh - 58px);
+  }
+
+  .tracking-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(420px, 55vh) auto;
+  }
 }

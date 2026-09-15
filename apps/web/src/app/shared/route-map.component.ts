@@ -68,7 +68,7 @@ const DEFAULT_CENTER: [number, number] = [-103.3496, 20.6597];
             (click)="toggleTraffic()"
             title="Tráfico en tiempo real"
           >
-            <app-icon name="route" [size]="13" /> Tráfico
+            <app-icon name="route" [size]="13" class="text-current" /> Tráfico
           </button>
           <button
             type="button"
@@ -79,7 +79,7 @@ const DEFAULT_CENTER: [number, number] = [-103.3496, 20.6597];
             (click)="toggleWind()"
             title="Viento (GFS)"
           >
-            <app-icon name="wind" [size]="13" /> Viento
+            <app-icon name="wind" [size]="13" class="text-current" /> Viento
           </button>
         </div>
       </div>
@@ -209,8 +209,18 @@ export class RouteMapComponent implements AfterViewInit, OnDestroy {
 
   toggleWind() {
     if (!this.map) return;
-    this.windOn.update((v) => !v);
-    this.maps.setWind(this.map, this.windOn());
+    const next = !this.windOn();
+    if (next) {
+      const ok = this.maps.setWind(this.map, true);
+      if (!ok) {
+        this.loadError.set('Viento no disponible en este estilo/token Mapbox. Revisa permisos GFS o prueba otro zoom.');
+        return;
+      }
+    } else {
+      this.maps.setWind(this.map, false);
+    }
+    this.windOn.set(next);
+    if (next) this.loadError.set(null);
   }
 
   /** Re-pinta las capas overlay tras un cambio de estilo (setStyle las borra). */

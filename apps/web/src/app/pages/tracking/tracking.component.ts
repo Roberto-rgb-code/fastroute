@@ -48,6 +48,7 @@ export class TrackingComponent implements AfterViewInit, OnDestroy {
 
   private map?: mapboxgl.Map;
   private pusher?: Pusher;
+  private resizeObs?: ResizeObserver;
   private markers = new Map<string, mapboxgl.Marker>();
   private stopMarkers: mapboxgl.Marker[] = [];
   private lastFix = new Map<string, LiveFix>();
@@ -66,8 +67,12 @@ export class TrackingComponent implements AfterViewInit, OnDestroy {
     this.map.addControl(new mapboxgl.NavigationControl({ visualizePitch: true }), 'bottom-right');
     this.map.on('load', () => {
       this.engineReady.set(true);
+      this.map?.resize();
       this.redrawStops();
     });
+
+    this.resizeObs = new ResizeObserver(() => this.map?.resize());
+    this.resizeObs.observe(this.mapEl.nativeElement);
 
     this.api.routes().subscribe((r) => {
       this.active.set(
@@ -80,6 +85,7 @@ export class TrackingComponent implements AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy() {
+    this.resizeObs?.disconnect();
     this.stopMarkers.forEach((m) => m.remove());
     this.markers.forEach((m) => m.remove());
     this.map?.remove();

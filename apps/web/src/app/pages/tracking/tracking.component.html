@@ -1,4 +1,4 @@
-<header class="mb-4 flex flex-wrap items-start justify-between gap-3">
+<header class="tracking-header flex shrink-0 flex-wrap items-start justify-between gap-3 border-b border-ink-200 bg-white px-5 py-3">
   <div>
     <h1 class="text-xl font-bold text-ink-900">Seguimiento</h1>
     <p class="text-sm text-ink-500">Unidades en vivo · Mapbox + Pusher</p>
@@ -17,25 +17,25 @@
 </header>
 
 @if (error()) {
-  <div class="mb-3 rounded-xl border border-warn/20 bg-warn-bg px-4 py-2.5 text-sm text-ink-800">{{ error() }}</div>
+  <div class="shrink-0 border-b border-warn/20 bg-warn-bg px-5 py-2.5 text-sm text-ink-800">{{ error() }}</div>
 }
 
-<div class="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
-  <div class="relative overflow-hidden rounded-2xl border border-ink-200 bg-white shadow-sm">
-    <div #mapEl class="h-[560px] w-full"></div>
+<div class="tracking-grid min-h-0 flex-1">
+  <div class="tracking-map relative min-h-0 overflow-hidden bg-ink-100">
+    <div #mapEl class="absolute inset-0 h-full w-full"></div>
     <div class="pointer-events-none absolute left-3 top-3 z-10 rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-semibold text-ink-700 shadow-sm">
       Mapbox
     </div>
   </div>
 
-  <aside class="overflow-hidden rounded-2xl border border-ink-200 bg-white shadow-sm">
-    <div class="border-b border-ink-100 px-4 py-3">
+  <aside class="flex min-h-0 flex-col overflow-hidden border-l border-ink-200 bg-white">
+    <div class="shrink-0 border-b border-ink-100 px-4 py-3">
       <h3 class="text-sm font-bold text-ink-900">Rutas activas ({{ active().length }})</h3>
     </div>
     @if (!active().length) {
       <p class="px-4 py-8 text-center text-sm text-ink-500">No hay rutas en curso ahora.</p>
     } @else {
-      <ul class="max-h-[480px] overflow-y-auto">
+      <ul class="min-h-0 flex-1 overflow-y-auto">
         @for (r of active(); track r.id) {
           <li>
             <button
@@ -59,7 +59,7 @@
         }
       </ul>
     }
-    <p class="border-t border-ink-100 px-4 py-3 text-[11px] text-ink-400">
+    <p class="shrink-0 border-t border-ink-100 px-4 py-3 text-[11px] text-ink-400">
       La app móvil publica ubicación cada ~20s. Abre una ruta
       <a class="font-semibold text-brand-600" routerLink="/app/routes">en curso</a>
       para ver el detalle.

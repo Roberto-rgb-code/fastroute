@@ -52,6 +52,8 @@ export class RoutesWorkspaceComponent implements OnInit {
   // ── paneles desplegables ──
   listOpen = signal(true);
   mapOpen = signal(true);
+  /** Mapa ocupa todo el alto; KPIs y pestañas quedan ocultas hasta volver a expandir. */
+  mapExpanded = signal(false);
 
   // ── lista ──
   day = signal<string>('');
@@ -175,7 +177,13 @@ export class RoutesWorkspaceComponent implements OnInit {
     const saved = this.loadPanels();
     this.listOpen.set(saved.list);
     this.mapOpen.set(saved.map);
-    effect(() => localStorage.setItem(PANELS_KEY, JSON.stringify({ list: this.listOpen(), map: this.mapOpen() })));
+    this.mapExpanded.set(saved.mapExpanded);
+    effect(() =>
+      localStorage.setItem(
+        PANELS_KEY,
+        JSON.stringify({ list: this.listOpen(), map: this.mapOpen(), mapExpanded: this.mapExpanded() }),
+      ),
+    );
   }
 
   ngOnInit() {
@@ -488,7 +496,21 @@ export class RoutesWorkspaceComponent implements OnInit {
 
   // ─────────── helpers ───────────
   toggleMap() {
-    this.mapOpen.update((v) => !v);
+    this.mapOpen.update((v) => {
+      const next = !v;
+      if (!next) this.mapExpanded.set(false);
+      return next;
+    });
+  }
+
+  /** Estilo Swift Haul: mapa grande; el detalle (KPIs + tabs) sigue ahí, solo colapsado. */
+  toggleMapExpanded() {
+    if (!this.mapOpen()) this.mapOpen.set(true);
+    this.mapExpanded.update((v) => !v);
+  }
+
+  collapseMapExpanded() {
+    this.mapExpanded.set(false);
   }
   toggleActions() {
     this.actionsOpen.update((v) => !v);
@@ -532,12 +554,12 @@ export class RoutesWorkspaceComponent implements OnInit {
     return r.expenses.reduce((a, e) => a + e.amount, 0);
   }
 
-  private loadPanels(): { list: boolean; map: boolean } {
+  private loadPanels(): { list: boolean; map: boolean; mapExpanded: boolean } {
     try {
       const v = JSON.parse(localStorage.getItem(PANELS_KEY) ?? '{}');
-      return { list: v.list ?? true, map: v.map ?? false };
+      return { list: v.list ?? true, map: v.map ?? false, mapExpanded: v.mapExpanded ?? false };
     } catch {
-      return { list: true, map: false };
+      return { list: true, map: false, mapExpanded: false };
     }
   }
 

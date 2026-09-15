@@ -186,7 +186,7 @@
       <p class="px-6 py-10 text-center text-sm text-ink-500">Cargando ruta…</p>
     } @else {
       @if (detail(); as r) {
-        <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div class="ws-detail flex min-h-0 flex-1 flex-col overflow-hidden" [class.map-maximized]="mapExpanded()">
         <!-- Encabezado: id + acciones -->
         <header class="flex flex-wrap items-center justify-between gap-3 border-b border-ink-100 bg-white px-5 py-3">
           <div class="flex min-w-0 items-center gap-2">
@@ -220,6 +220,19 @@
               <a class="grid rounded-lg border border-ink-200 bg-white p-1.5 text-ink-600 hover:bg-ink-50" routerLink="/app/tracking" [queryParams]="{ route: r.id }" title="Ver en seguimiento">
                 <app-icon name="map" [size]="16" />
               </a>
+            }
+            @if (mapOpen()) {
+              <button
+                type="button"
+                class="grid rounded-lg border border-ink-200 bg-white p-1.5 hover:bg-ink-50"
+                [class.bg-brand-600]="mapExpanded()"
+                [class.text-white]="mapExpanded()"
+                [class.text-ink-600]="!mapExpanded()"
+                (click)="toggleMapExpanded()"
+                [title]="mapExpanded() ? 'Mostrar KPIs y pestañas' : 'Expandir mapa (ocultar detalle inferior)'"
+              >
+                <app-icon name="map" [size]="16" />
+              </button>
             }
             <button type="button" class="grid rounded-lg border border-ink-200 bg-white p-1.5 text-ink-600 hover:bg-ink-50" (click)="toggleMap()" [title]="mapOpen() ? 'Ocultar mapa' : 'Mostrar mapa'">
               <app-icon name="collapse" [size]="16" />
@@ -283,7 +296,7 @@
           </div>
         </div>
 
-        <div class="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto bg-[#f4f6f9] p-4">
+        <div class="ws-detail-scroll flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto bg-[#f4f6f9] p-4">
           @if (r.status === 'CHECKLIST_PENDING') {
             <div class="flex items-start gap-2.5 rounded-xl border border-warn/20 bg-warn-bg px-4 py-3 text-sm text-ink-900">
               <app-icon name="alert" [size]="18" class="mt-0.5 text-warn" />
@@ -299,10 +312,19 @@
 
           <!-- Mapa dominante -->
           @if (mapOpen()) {
-            <div class="overflow-hidden rounded-2xl border border-ink-200 bg-white shadow-sm">
-              <div class="h-[min(42vh,420px)] min-h-[280px] w-full">
+            <div class="ws-map-panel relative overflow-hidden rounded-2xl border border-ink-200 bg-white shadow-sm">
+              <div class="ws-map-frame h-[min(42vh,420px)] min-h-[280px] w-full">
                 <app-route-map [points]="mapPoints()" />
               </div>
+              @if (mapExpanded()) {
+                <button
+                  type="button"
+                  class="absolute bottom-3 left-1/2 z-20 -translate-x-1/2 rounded-full border border-ink-200 bg-white/95 px-4 py-2 text-xs font-semibold text-ink-800 shadow-md backdrop-blur hover:bg-white"
+                  (click)="collapseMapExpanded()"
+                >
+                  Mostrar detalle de ruta ↓
+                </button>
+              }
               <div class="flex flex-wrap items-center gap-3 border-t border-ink-100 px-4 py-2 text-[11px] text-ink-500">
                 <span class="inline-flex items-center gap-1.5"><i class="h-2 w-2 rounded-full bg-brand-600"></i> Pendiente</span>
                 <span class="inline-flex items-center gap-1.5"><i class="h-2 w-2 rounded-full bg-ok"></i> Atendida</span>
@@ -316,28 +338,54 @@
             </div>
           }
 
+          <div class="ws-detail-below flex flex-col gap-3">
           <!-- Métricas compactas -->
           <div class="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">
-            <div class="rounded-xl border border-ink-200 bg-white px-3 py-2.5">
-              <span class="text-[10px] font-medium uppercase tracking-wide text-ink-400">Progreso</span>
-              <strong class="block text-base leading-tight text-ink-900">{{ progress(r) }}%</strong>
-              <span class="mt-1.5 block h-1 overflow-hidden rounded-full bg-ink-100"><i class="block h-full rounded-full bg-brand-600" [style.width.%]="progress(r)"></i></span>
+            <div class="flex items-start gap-2.5 rounded-xl border border-ink-200 bg-white px-3 py-2.5">
+              <span class="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-brand-600 text-white">
+                <app-icon name="checklist" [size]="16" />
+              </span>
+              <div class="min-w-0 flex-1">
+                <span class="text-[10px] font-medium uppercase tracking-wide text-ink-400">Progreso</span>
+                <strong class="block text-base leading-tight text-ink-900">{{ progress(r) }}%</strong>
+                <span class="mt-1.5 block h-1 overflow-hidden rounded-full bg-ink-100"><i class="block h-full rounded-full bg-brand-600" [style.width.%]="progress(r)"></i></span>
+              </div>
             </div>
-            <div class="rounded-xl border border-ink-200 bg-white px-3 py-2.5">
-              <span class="text-[10px] font-medium uppercase tracking-wide text-ink-400">Paradas</span>
-              <strong class="block text-base leading-tight text-ink-900">{{ r.events.length }}</strong>
+            <div class="flex items-start gap-2.5 rounded-xl border border-ink-200 bg-white px-3 py-2.5">
+              <span class="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-accent-teal text-white">
+                <app-icon name="pin" [size]="16" />
+              </span>
+              <div class="min-w-0">
+                <span class="text-[10px] font-medium uppercase tracking-wide text-ink-400">Paradas</span>
+                <strong class="block text-base leading-tight text-ink-900">{{ r.events.length }}</strong>
+              </div>
             </div>
-            <div class="rounded-xl border border-ink-200 bg-white px-3 py-2.5">
-              <span class="text-[10px] font-medium uppercase tracking-wide text-ink-400">Distancia</span>
-              <strong class="block text-base leading-tight text-ink-900">{{ km(r.totalDistance) }}</strong>
+            <div class="flex items-start gap-2.5 rounded-xl border border-ink-200 bg-white px-3 py-2.5">
+              <span class="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-info text-white">
+                <app-icon name="route" [size]="16" />
+              </span>
+              <div class="min-w-0">
+                <span class="text-[10px] font-medium uppercase tracking-wide text-ink-400">Distancia</span>
+                <strong class="block text-base leading-tight text-ink-900">{{ km(r.totalDistance) }}</strong>
+              </div>
             </div>
-            <div class="rounded-xl border border-ink-200 bg-white px-3 py-2.5">
-              <span class="text-[10px] font-medium uppercase tracking-wide text-ink-400">Duración</span>
-              <strong class="block text-base leading-tight text-ink-900">{{ dur(r.totalDuration) }}</strong>
+            <div class="flex items-start gap-2.5 rounded-xl border border-ink-200 bg-white px-3 py-2.5">
+              <span class="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-accent-amber text-white">
+                <app-icon name="clock" [size]="16" />
+              </span>
+              <div class="min-w-0">
+                <span class="text-[10px] font-medium uppercase tracking-wide text-ink-400">Duración</span>
+                <strong class="block text-base leading-tight text-ink-900">{{ dur(r.totalDuration) }}</strong>
+              </div>
             </div>
-            <div class="rounded-xl border border-ink-200 bg-white px-3 py-2.5">
-              <span class="text-[10px] font-medium uppercase tracking-wide text-ink-400">Km recorridos</span>
-              <strong class="block text-base leading-tight text-ink-900">{{ kmTraveled(r) }}</strong>
+            <div class="flex items-start gap-2.5 rounded-xl border border-ink-200 bg-white px-3 py-2.5">
+              <span class="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-accent-pink text-white">
+                <app-icon name="vehicle" [size]="16" />
+              </span>
+              <div class="min-w-0">
+                <span class="text-[10px] font-medium uppercase tracking-wide text-ink-400">Km recorridos</span>
+                <strong class="block text-base leading-tight text-ink-900">{{ kmTraveled(r) }}</strong>
+              </div>
             </div>
           </div>
 
@@ -659,6 +707,7 @@
               <app-route-chat [routeId]="r.id" />
             </div>
           }
+          </div>
         </div>
         </div>
       }

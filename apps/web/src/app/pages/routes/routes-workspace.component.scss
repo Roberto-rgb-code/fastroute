@@ -27,6 +27,31 @@ app-route-map {
   height: 100%;
 }
 
+/* Mapa expandido: oculta KPIs/tabs debajo; el mapa llena el panel (estilo referencia Swift Haul). */
+.ws-detail.map-maximized {
+  .ws-detail-scroll {
+    overflow: hidden;
+    padding-bottom: 0;
+  }
+
+  .ws-map-panel {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    flex-direction: column;
+  }
+
+  .ws-map-frame {
+    flex: 1;
+    min-height: 0;
+    height: auto !important;
+  }
+
+  .ws-detail-below {
+    display: none;
+  }
+}
+
 @media (max-width: 960px) {
   :host {
     margin: 0;
