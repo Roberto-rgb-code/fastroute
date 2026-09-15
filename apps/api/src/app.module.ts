@@ -16,6 +16,7 @@ import { SettingsModule } from './settings/settings.module';
 import { TemplatesModule } from './templates/templates.module';
 import { UsersModule } from './users/users.module';
 import { ReportsModule } from './reports/reports.module';
+import { GeocodingModule } from './geocoding/geocoding.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { ReportsModule } from './reports/reports.module';
     TemplatesModule,
     UsersModule,
     ReportsModule,
+    GeocodingModule,
   ],
   controllers: [AppController, ConfigController],
   providers: [AppService],

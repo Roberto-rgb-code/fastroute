@@ -6,6 +6,8 @@ node_modules/
 dist/
 .angular/
 coverage/
+**/coverage/
+**/junit.xml
 
 # Env & secrets — never commit
 .env
@@ -14,9 +16,12 @@ coverage/
 *.pem
 *.json
 !package.json
+!package-lock.json
 !tsconfig*.json
 !angular.json
 !nest-cli.json
+!jest.config.js
+!apps/api/test/jest-e2e.json
 service-account*.json
 terraform.tfvars
 terraform.tfstate
@@ -39,3 +44,8 @@ uploads/
 # Expo
 apps/mobile/.expo/
 apps/mobile/dist/
+
+# Python geocoder
+**/__pycache__/
+**/.venv/
+apps/api/geopy/.venv/

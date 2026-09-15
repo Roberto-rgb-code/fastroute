@@ -67,10 +67,18 @@
     </header>
     <div class="drawer-body">
       <label class="field">Etiqueta *<input class="input" [(ngModel)]="e.label" placeholder="Ej. Bodega Zapopan" /></label>
-      <label class="field">Dirección *<input class="input" [(ngModel)]="e.address" placeholder="Calle, número, colonia" /></label>
+      <label class="field">Dirección *<input class="input" [(ngModel)]="e.address" placeholder="Calle, número, colonia, ciudad" /></label>
+      <div class="geo-row">
+        <button type="button" class="btn btn-ghost" [disabled]="geocoding()" (click)="geocodeAddress()">
+          {{ geocoding() ? 'Buscando…' : 'Obtener coordenadas (gratis)' }}
+        </button>
+        @if (geocodeHint()) {
+          <span class="muted tiny">{{ geocodeHint() }}</span>
+        }
+      </div>
       <div class="two">
-        <label class="field">Latitud<input class="input" type="number" step="0.000001" [(ngModel)]="e.lat" /></label>
-        <label class="field">Longitud<input class="input" type="number" step="0.000001" [(ngModel)]="e.lng" /></label>
+        <label class="field">Latitud<input class="input" type="number" step="0.000001" [(ngModel)]="e.lat" placeholder="Auto" /></label>
+        <label class="field">Longitud<input class="input" type="number" step="0.000001" [(ngModel)]="e.lng" placeholder="Auto" /></label>
       </div>
       <div class="two">
         <label class="field">Tipo

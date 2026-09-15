@@ -146,8 +146,18 @@
                 <span class="h-1.5 flex-1 overflow-hidden rounded-full bg-ink-100">
                   <i class="block h-full rounded-full bg-brand-600 transition-[width]" [style.width.%]="progress(r)"></i>
                 </span>
-                <span class="shrink-0 text-[11px] tabular-nums text-ink-500">{{ progress(r) }}% · {{ r._count?.events || 0 }} paradas</span>
+                <span class="shrink-0 text-[11px] tabular-nums text-ink-500">{{ progress(r) }}%</span>
               </div>
+              @if (r.driver?.phone) {
+                <div class="mt-2.5 flex items-center gap-2 pl-[46px]" (click)="$event.stopPropagation()">
+                  <span class="flex min-w-0 flex-1 items-center gap-2">
+                    <span class="grid h-6 w-6 place-items-center rounded-full bg-brand-100 text-[10px] font-bold text-brand-700">{{ initials(r.driver?.name) }}</span>
+                    <span class="truncate text-xs text-ink-600">{{ r.driver?.name }}</span>
+                  </span>
+                  <a class="grid h-7 w-7 place-items-center rounded-full bg-ink-100 text-ink-600 hover:bg-brand-100 hover:text-brand-700" [href]="'tel:' + r.driver!.phone" title="Llamar"><app-icon name="sms" [size]="13" /></a>
+                  <a class="grid h-7 w-7 place-items-center rounded-full bg-ok-bg text-ok hover:opacity-80" [href]="'https://wa.me/' + (r.driver!.phone || '').replace('+','')" target="_blank" rel="noopener" title="WhatsApp"><app-icon name="whatsapp" [size]="13" /></a>
+                </div>
+              }
             </button>
           }
         }
@@ -156,7 +166,7 @@
   </aside>
 
   <!-- ═══════════ Panel 2: detalle con mapa ═══════════ -->
-  <section class="flex min-w-0 flex-col overflow-y-auto bg-ink-50">
+  <section class="flex min-h-0 min-w-0 flex-col overflow-hidden bg-[#f4f6f9]">
     @if (!selectedId()) {
       <div class="flex min-h-0 flex-1 flex-col">
         <div class="min-h-[320px] flex-1 overflow-hidden border-b border-ink-200">
@@ -176,12 +186,13 @@
       <p class="px-6 py-10 text-center text-sm text-ink-500">Cargando ruta…</p>
     } @else {
       @if (detail(); as r) {
+        <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
         <!-- Encabezado: id + acciones -->
-        <header class="flex flex-wrap items-center justify-between gap-3 bg-white px-6 pt-5">
+        <header class="flex flex-wrap items-center justify-between gap-3 border-b border-ink-100 bg-white px-5 py-3">
           <div class="flex min-w-0 items-center gap-2">
-            <span class="text-sm text-ink-400">#Ruta:</span>
-            <h2 class="truncate text-lg font-bold text-ink-900">{{ r.name }}</h2>
-            <span class="rounded-md px-2 py-1 text-[11px] font-bold" [class]="tonePill(ROUTE_BADGE[r.status])">{{ ROUTE_LABEL[r.status] }}</span>
+            <span class="text-xs font-medium text-ink-400">#Ruta</span>
+            <h2 class="truncate text-base font-bold text-ink-900">{{ r.name }}</h2>
+            <span class="rounded-md px-2 py-0.5 text-[11px] font-bold" [class]="tonePill(ROUTE_BADGE[r.status])">{{ ROUTE_LABEL[r.status] }}</span>
           </div>
 
           <div class="flex shrink-0 items-center gap-2">
@@ -240,31 +251,31 @@
           </div>
         </header>
 
-        <!-- Chips de datos con iconos de color -->
-        <div class="flex flex-wrap items-stretch gap-y-3 border-b border-ink-200 bg-white px-6 py-4">
-          <div class="flex min-w-[180px] flex-1 items-center gap-2.5 pr-4">
+        <!-- Chips de datos (inspiración 2: azul / rosa / ámbar / teal) -->
+        <div class="grid grid-cols-2 gap-0 border-b border-ink-200 bg-white sm:grid-cols-4">
+          <div class="flex items-center gap-2.5 border-b border-ink-100 px-4 py-3 sm:border-b-0 sm:border-r">
             <span class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-info text-white"><app-icon name="driver" [size]="17" /></span>
             <span class="min-w-0">
               <strong class="block truncate text-sm text-ink-900">{{ r.driver?.name || 'Sin operador' }}</strong>
               <span class="text-[11px] text-ink-400">Operador</span>
             </span>
           </div>
-          <div class="flex min-w-[180px] flex-1 items-center gap-2.5 border-l border-ink-100 px-4">
-            <span class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#ec4899] text-white"><app-icon name="vehicle" [size]="17" /></span>
+          <div class="flex items-center gap-2.5 border-b border-ink-100 px-4 py-3 sm:border-b-0 sm:border-r">
+            <span class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent-pink text-white"><app-icon name="vehicle" [size]="17" /></span>
             <span class="min-w-0">
               <strong class="block truncate text-sm text-ink-900">{{ r.vehicle?.plate || '—' }}</strong>
-              <span class="text-[11px] text-ink-400">Unidad{{ r.vehicle?.name ? ' · ' + r.vehicle?.name : '' }}</span>
+              <span class="text-[11px] text-ink-400">Unidad</span>
             </span>
           </div>
-          <div class="flex min-w-[180px] flex-1 items-center gap-2.5 border-l border-ink-100 px-4">
-            <span class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#f59e0b] text-white"><app-icon name="client" [size]="17" /></span>
+          <div class="flex items-center gap-2.5 border-b border-ink-100 px-4 py-3 sm:border-b-0 sm:border-r">
+            <span class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent-amber text-white"><app-icon name="client" [size]="17" /></span>
             <span class="min-w-0">
               <strong class="block truncate text-sm text-ink-900">{{ r.client?.name || 'Sin cliente' }}</strong>
               <span class="text-[11px] text-ink-400">Cliente</span>
             </span>
           </div>
-          <div class="flex min-w-[180px] flex-1 items-center gap-2.5 border-l border-ink-100 pl-4">
-            <span class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#0ea5a4] text-white"><app-icon name="clock" [size]="17" /></span>
+          <div class="flex items-center gap-2.5 px-4 py-3">
+            <span class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent-teal text-white"><app-icon name="clock" [size]="17" /></span>
             <span class="min-w-0">
               <strong class="block truncate text-sm text-ink-900">{{ r.dateStarted ? time(r.dateStarted) : dateTime(r.dateStart) }}</strong>
               <span class="text-[11px] text-ink-400">{{ r.dateStarted ? 'Inicio real' : 'Planificada' }}</span>
@@ -272,7 +283,7 @@
           </div>
         </div>
 
-        <div class="flex flex-col gap-4 p-6">
+        <div class="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto bg-[#f4f6f9] p-4">
           @if (r.status === 'CHECKLIST_PENDING') {
             <div class="flex items-start gap-2.5 rounded-xl border border-warn/20 bg-warn-bg px-4 py-3 text-sm text-ink-900">
               <app-icon name="alert" [size]="18" class="mt-0.5 text-warn" />
@@ -286,13 +297,13 @@
             </div>
           }
 
-          <!-- Mapa de la ruta -->
+          <!-- Mapa dominante -->
           @if (mapOpen()) {
-            <div class="overflow-hidden rounded-2xl border border-ink-200 bg-white">
-              <div class="h-[280px] w-full">
+            <div class="overflow-hidden rounded-2xl border border-ink-200 bg-white shadow-sm">
+              <div class="h-[min(42vh,420px)] min-h-[280px] w-full">
                 <app-route-map [points]="mapPoints()" />
               </div>
-              <div class="flex flex-wrap items-center gap-3 border-t border-ink-100 px-4 py-2.5 text-[11px] text-ink-500">
+              <div class="flex flex-wrap items-center gap-3 border-t border-ink-100 px-4 py-2 text-[11px] text-ink-500">
                 <span class="inline-flex items-center gap-1.5"><i class="h-2 w-2 rounded-full bg-brand-600"></i> Pendiente</span>
                 <span class="inline-flex items-center gap-1.5"><i class="h-2 w-2 rounded-full bg-ok"></i> Atendida</span>
                 <span class="inline-flex items-center gap-1.5"><i class="h-2 w-2 rounded-full bg-danger"></i> Con problema</span>
@@ -303,28 +314,28 @@
             </div>
           }
 
-          <!-- Métricas -->
-          <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
-            <div class="rounded-xl border border-ink-200 bg-white px-3.5 py-3">
-              <span class="text-[11px] text-ink-400">Progreso</span>
-              <strong class="block text-lg leading-tight text-ink-900">{{ progress(r) }}%</strong>
-              <span class="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-ink-100"><i class="block h-full rounded-full bg-brand-600" [style.width.%]="progress(r)"></i></span>
+          <!-- Métricas compactas -->
+          <div class="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">
+            <div class="rounded-xl border border-ink-200 bg-white px-3 py-2.5">
+              <span class="text-[10px] font-medium uppercase tracking-wide text-ink-400">Progreso</span>
+              <strong class="block text-base leading-tight text-ink-900">{{ progress(r) }}%</strong>
+              <span class="mt-1.5 block h-1 overflow-hidden rounded-full bg-ink-100"><i class="block h-full rounded-full bg-brand-600" [style.width.%]="progress(r)"></i></span>
             </div>
-            <div class="rounded-xl border border-ink-200 bg-white px-3.5 py-3">
-              <span class="text-[11px] text-ink-400">Paradas</span>
-              <strong class="block text-lg leading-tight text-ink-900">{{ r.events.length }}</strong>
+            <div class="rounded-xl border border-ink-200 bg-white px-3 py-2.5">
+              <span class="text-[10px] font-medium uppercase tracking-wide text-ink-400">Paradas</span>
+              <strong class="block text-base leading-tight text-ink-900">{{ r.events.length }}</strong>
             </div>
-            <div class="rounded-xl border border-ink-200 bg-white px-3.5 py-3">
-              <span class="text-[11px] text-ink-400">Distancia</span>
-              <strong class="block text-lg leading-tight text-ink-900">{{ km(r.totalDistance) }}</strong>
+            <div class="rounded-xl border border-ink-200 bg-white px-3 py-2.5">
+              <span class="text-[10px] font-medium uppercase tracking-wide text-ink-400">Distancia</span>
+              <strong class="block text-base leading-tight text-ink-900">{{ km(r.totalDistance) }}</strong>
             </div>
-            <div class="rounded-xl border border-ink-200 bg-white px-3.5 py-3">
-              <span class="text-[11px] text-ink-400">Duración est.</span>
-              <strong class="block text-lg leading-tight text-ink-900">{{ dur(r.totalDuration) }}</strong>
+            <div class="rounded-xl border border-ink-200 bg-white px-3 py-2.5">
+              <span class="text-[10px] font-medium uppercase tracking-wide text-ink-400">Duración</span>
+              <strong class="block text-base leading-tight text-ink-900">{{ dur(r.totalDuration) }}</strong>
             </div>
-            <div class="rounded-xl border border-ink-200 bg-white px-3.5 py-3">
-              <span class="text-[11px] text-ink-400">Km recorridos</span>
-              <strong class="block text-lg leading-tight text-ink-900">{{ kmTraveled(r) }}</strong>
+            <div class="rounded-xl border border-ink-200 bg-white px-3 py-2.5">
+              <span class="text-[10px] font-medium uppercase tracking-wide text-ink-400">Km recorridos</span>
+              <strong class="block text-base leading-tight text-ink-900">{{ kmTraveled(r) }}</strong>
             </div>
           </div>
 
@@ -640,6 +651,7 @@
               }
             </div>
           }
+        </div>
         </div>
       }
     }

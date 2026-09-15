@@ -9,8 +9,8 @@ import { PageHeaderComponent } from '../../shared/page-header.component';
 const EMPTY: Partial<Stop> = {
   label: '',
   address: '',
-  lat: 20.6597,
-  lng: -103.3496,
+  lat: undefined,
+  lng: undefined,
   type: 'VISIT',
   isMain: false,
   clientId: '',
@@ -41,6 +41,8 @@ export class StopsComponent implements OnInit {
   typeFilter = signal<StopType | 'ALL'>('ALL');
   editing = signal<Partial<Stop> | null>(null);
   error = signal<string | null>(null);
+  geocoding = signal(false);
+  geocodeHint = signal<string | null>(null);
 
   readonly STOP_TYPE_LABEL = STOP_TYPE_LABEL;
   readonly types: StopType[] = ['VISIT', 'CEDIS', 'MAIN', 'GAS', 'PARKING', 'WORKSHOP'];
@@ -72,11 +74,13 @@ export class StopsComponent implements OnInit {
 
   create() {
     this.error.set(null);
+    this.geocodeHint.set(null);
     this.editing.set({ ...EMPTY });
   }
 
   edit(s: Stop) {
     this.error.set(null);
+    this.geocodeHint.set(null);
     this.editing.set({ ...s, clientId: s.clientId ?? '' });
   }
 
@@ -85,6 +89,29 @@ export class StopsComponent implements OnInit {
     if (!e) return;
     const t = this.settings()?.stop_tag.find((x) => x.name === name);
     this.editing.set({ ...e, tag: name || '', tagColor: t?.color ?? '' });
+  }
+
+  geocodeAddress() {
+    const e = this.editing();
+    if (!e?.address?.trim()) {
+      this.error.set('Escribe una dirección primero');
+      return;
+    }
+    this.error.set(null);
+    this.geocodeHint.set(null);
+    this.geocoding.set(true);
+    this.api.geocode(e.address.trim()).subscribe({
+      next: (g) => {
+        this.geocoding.set(false);
+        this.editing.set({ ...e, lat: g.lat, lng: g.lng });
+        this.geocodeHint.set(g.displayName);
+      },
+      error: (err) => {
+        this.geocoding.set(false);
+        const m = err?.error?.message;
+        this.error.set(Array.isArray(m) ? m.join(', ') : m || 'No se pudo geocodificar (Nominatim)');
+      },
+    });
   }
 
   save() {
@@ -97,8 +124,6 @@ export class StopsComponent implements OnInit {
     const body: Partial<Stop> = {
       label: e.label.trim(),
       address: e.address.trim(),
-      lat: Number(e.lat),
-      lng: Number(e.lng),
       type: e.type,
       isMain: !!e.isMain,
       clientId: e.clientId || undefined,
@@ -110,15 +135,20 @@ export class StopsComponent implements OnInit {
       tagColor: e.tagColor || undefined,
       reference: e.reference || undefined,
     };
+    if (e.lat != null && e.lng != null && Number.isFinite(Number(e.lat)) && Number.isFinite(Number(e.lng))) {
+      body.lat = Number(e.lat);
+      body.lng = Number(e.lng);
+    }
     const req = e.id ? this.api.updateStop(e.id, body) : this.api.createStop(body);
     req.subscribe({
       next: () => {
         this.editing.set(null);
+        this.geocodeHint.set(null);
         this.load();
       },
       error: (err) => {
         const m = err?.error?.message;
-        this.error.set(Array.isArray(m) ? m.join(', ') : (m ?? 'No se pudo guardar'));
+        this.error.set(Array.isArray(m) ? m.join(', ') : m || 'Error al guardar');
       },
     });
   }

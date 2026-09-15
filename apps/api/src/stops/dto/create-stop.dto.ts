@@ -10,11 +10,14 @@ export class CreateStopDto {
   @MinLength(2)
   address!: string;
 
+  /** Opcional: si falta, se geocodifica con geopy/Nominatim (gratis). */
+  @IsOptional()
   @IsLatitude()
-  lat!: number;
+  lat?: number;
 
+  @IsOptional()
   @IsLongitude()
-  lng!: number;
+  lng?: number;
 
   @IsOptional()
   @IsString()

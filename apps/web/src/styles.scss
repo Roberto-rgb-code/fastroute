@@ -3,11 +3,11 @@
 @import 'leaflet/dist/leaflet.css';
 
 :root {
-  --brand-50: #eef2ff;
-  --brand-100: #e0e7ff;
-  --brand-500: #6366f1;
-  --brand-600: #4f46e5;
-  --brand-700: #4338ca;
+  --brand-50: #eff6ff;
+  --brand-100: #dbeafe;
+  --brand-500: #3b82f6;
+  --brand-600: #2563eb;
+  --brand-700: #1d4ed8;
 
   --ink-900: #0f172a;
   --ink-700: #334155;
@@ -19,12 +19,15 @@
 
   --ok: #059669;
   --ok-bg: #d1fae5;
-  --warn: #d97706;
+  --warn: #f59e0b;
   --warn-bg: #fef3c7;
-  --danger: #dc2626;
-  --danger-bg: #fee2e2;
+  --danger: #e11d48;
+  --danger-bg: #ffe4e6;
   --info: #2563eb;
   --info-bg: #dbeafe;
+  --accent-pink: #ec4899;
+  --accent-amber: #f59e0b;
+  --accent-teal: #14b8a6;
 
   --radius: 14px;
   --radius-sm: 9px;

@@ -246,6 +246,14 @@ export class ApiService {
   deleteStop(id: string) {
     return this.http.delete(`${BASE}/stops/${id}`);
   }
+
+  /** Geocoding gratis (geopy + Nominatim OSM). */
+  geocode(query: string, country = 'mx') {
+    return this.http.post<{ lat: number; lng: number; displayName: string; provider: string }>(`${BASE}/geocode`, {
+      query,
+      country,
+    });
+  }
 }
 
 export type { DeliverStatus, IncidentReason };

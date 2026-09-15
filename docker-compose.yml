@@ -56,6 +56,8 @@ services:
     volumes:
       - ./apps/api/src:/app/apps/api/src
       - ./apps/api/prisma:/app/apps/api/prisma
+      - ./apps/api/geopy/geocode.py:/app/apps/api/geopy/geocode.py:ro
+      - ./apps/api/geopy/requirements.txt:/app/apps/api/geopy/requirements.txt:ro
       - ./uploads:/app/uploads
     depends_on:
       postgres:

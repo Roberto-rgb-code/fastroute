@@ -1,17 +1,18 @@
-/* Solo el layout a pantalla completa; el resto de estilos son utilidades Tailwind. */
+/* Layout a pantalla completa dentro del shell */
 :host {
   display: block;
-  margin: -1.75rem -2rem -2.5rem;
+  margin: -1.25rem -1.5rem -2rem;
   height: calc(100vh - 58px);
   --list-w: 340px;
-  --rail-w: 46px;
+  --rail-w: 48px;
 }
 
 .ws {
   display: grid;
   grid-template-columns: var(--list-w) minmax(0, 1fr);
   height: 100%;
-  transition: grid-template-columns 0.25s ease;
+  background: #fff;
+  transition: grid-template-columns 0.22s ease;
 
   &.list-closed {
     grid-template-columns: var(--rail-w) minmax(0, 1fr);
@@ -26,11 +27,11 @@ app-route-map {
 
 @media (max-width: 960px) {
   :host {
-    margin: -1.25rem;
+    margin: -1rem;
     height: calc(100vh - 58px);
   }
   .ws,
   .ws.list-closed {
-    grid-template-columns: var(--rail-w) minmax(0, 1fr);
+    grid-template-columns: 1fr;
   }
 }

@@ -388,7 +388,7 @@ export class RoutesWorkspaceComponent implements OnInit {
     return e.stop?.label ?? '—';
   }
 
-  /** Color sólido para iconos y puntos de la línea de tiempo. */
+  /** Color sólido para iconos y puntos de la línea de tiempo (inspiración 2). */
   toneDot(kind: string): string {
     switch (kind) {
       case 'ok':
@@ -396,15 +396,15 @@ export class RoutesWorkspaceComponent implements OnInit {
       case 'info':
         return 'bg-info';
       case 'warn':
-        return 'bg-warn';
+        return 'bg-accent-amber';
       case 'danger':
-        return 'bg-danger';
+        return 'bg-accent-pink';
       default:
-        return 'bg-ink-400';
+        return 'bg-accent-teal';
     }
   }
 
-  /** Texto de estado en color (estilo "Delivered" / "Provider Cancelled"). */
+  /** Texto de estado en color. */
   toneText(kind: string): string {
     switch (kind) {
       case 'ok':
@@ -412,11 +412,11 @@ export class RoutesWorkspaceComponent implements OnInit {
       case 'info':
         return 'text-info';
       case 'warn':
-        return 'text-warn';
+        return 'text-accent-amber';
       case 'danger':
-        return 'text-danger';
+        return 'text-accent-pink';
       default:
-        return 'text-ink-500';
+        return 'text-accent-teal';
     }
   }
 

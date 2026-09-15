@@ -1,1 +1,8 @@
 @use '../../shared/admin';
+
+.geo-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0.25rem 0 0.75rem;
+}

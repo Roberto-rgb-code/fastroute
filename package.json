@@ -16,7 +16,15 @@
     "dev:android:watchdog": "bash scripts/android-emulator.sh watchdog",
     "db:migrate": "npm run prisma:migrate -w @fastroute/api",
     "db:seed": "npm run prisma:seed -w @fastroute/api",
-    "db:studio": "npm run prisma:studio -w @fastroute/api"
+    "db:studio": "npm run prisma:studio -w @fastroute/api",
+    "prisma:generate": "npm run prisma:generate -w @fastroute/api",
+    "test": "npm run test -w @fastroute/api && npm run test -w @fastroute/web",
+    "test:ci": "npm run test:ci -w @fastroute/api && npm run test:ci -w @fastroute/web",
+    "typecheck:api": "npm run typecheck -w @fastroute/api",
+    "build:api": "npm run build -w @fastroute/api",
+    "build:web": "npm run build -w @fastroute/web -- --configuration production",
+    "build:ci": "npm run prisma:generate && npm run build:api && npm run build:web",
+    "qa": "bash scripts/qa.sh"
   },
   "engines": {
     "node": ">=20"
