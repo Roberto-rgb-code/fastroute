@@ -122,6 +122,11 @@ export class ApiService {
   route(id: string) {
     return this.http.get<RouteDetail>(`${BASE}/routes/${id}`);
   }
+  routesHistory(opts: { from?: string; to?: string; driverId?: string; q?: string } = {}) {
+    return this.http.get<RouteSummary[]>(`${BASE}/routes/history`, {
+      params: params({ from: opts.from, to: opts.to, driverId: opts.driverId, q: opts.q }),
+    });
+  }
   createRoute(body: {
     name: string;
     driverId?: string;

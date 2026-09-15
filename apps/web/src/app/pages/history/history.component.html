@@ -1,0 +1,91 @@
+<div class="mx-auto flex w-full max-w-[1200px] flex-col gap-5">
+  <header class="flex flex-wrap items-end justify-between gap-3">
+    <div>
+      <h1 class="text-xl font-bold text-ink-900">Historial operativo</h1>
+      <p class="text-sm text-ink-500">Rutas cerradas: finalizadas, completadas y canceladas.</p>
+    </div>
+  </header>
+
+  <!-- Filtros -->
+  <div class="flex flex-wrap items-end gap-3 rounded-2xl border border-ink-200 bg-white p-4 shadow-sm">
+    <label class="flex flex-col gap-1 text-xs font-semibold text-ink-500">
+      Desde
+      <input type="date" [ngModel]="from()" (ngModelChange)="from.set($event)" class="rounded-lg border border-ink-200 px-3 py-2 text-sm text-ink-900" />
+    </label>
+    <label class="flex flex-col gap-1 text-xs font-semibold text-ink-500">
+      Hasta
+      <input type="date" [ngModel]="to()" (ngModelChange)="to.set($event)" class="rounded-lg border border-ink-200 px-3 py-2 text-sm text-ink-900" />
+    </label>
+    <label class="flex flex-col gap-1 text-xs font-semibold text-ink-500">
+      Operador
+      <select [ngModel]="driverId()" (ngModelChange)="driverId.set($event)" class="rounded-lg border border-ink-200 px-3 py-2 text-sm text-ink-900">
+        <option value="">Todos</option>
+        @for (d of drivers(); track d.id) {
+          <option [value]="d.id">{{ d.name }}</option>
+        }
+      </select>
+    </label>
+    <label class="flex flex-1 flex-col gap-1 text-xs font-semibold text-ink-500">
+      Buscar
+      <input type="text" [ngModel]="q()" (ngModelChange)="q.set($event)" placeholder="Ruta, operador o placa" class="rounded-lg border border-ink-200 px-3 py-2 text-sm text-ink-900" (keyup.enter)="load()" />
+    </label>
+    <button type="button" class="inline-flex items-center gap-1.5 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white" (click)="load()">
+      <app-icon name="history" [size]="16" /> Aplicar
+    </button>
+  </div>
+
+  <!-- KPIs -->
+  <div class="grid grid-cols-2 gap-3 md:grid-cols-4">
+    <div class="rounded-2xl border border-ink-200 bg-white p-4 shadow-sm">
+      <p class="text-2xl font-bold text-ink-900">{{ stats().total }}</p>
+      <p class="text-xs text-ink-500">Rutas cerradas</p>
+    </div>
+    <div class="rounded-2xl border border-ink-200 bg-white p-4 shadow-sm">
+      <p class="text-2xl font-bold text-ok">{{ stats().finished }}</p>
+      <p class="text-xs text-ink-500">Finalizadas</p>
+    </div>
+    <div class="rounded-2xl border border-ink-200 bg-white p-4 shadow-sm">
+      <p class="text-2xl font-bold text-danger">{{ stats().cancelled }}</p>
+      <p class="text-xs text-ink-500">Canceladas</p>
+    </div>
+    <div class="rounded-2xl border border-ink-200 bg-white p-4 shadow-sm">
+      <p class="text-2xl font-bold text-ink-900">{{ stats().km | number: '1.0-0' }} km</p>
+      <p class="text-xs text-ink-500">Distancia total</p>
+    </div>
+  </div>
+
+  <!-- Timeline / lista -->
+  <div class="overflow-hidden rounded-2xl border border-ink-200 bg-white shadow-sm">
+    @if (loading()) {
+      <p class="py-12 text-center text-sm text-ink-400">Cargando historial…</p>
+    } @else if (!rows().length) {
+      <div class="flex flex-col items-center gap-2 py-14 text-center text-ink-400">
+        <app-icon name="history" [size]="30" />
+        <p class="text-sm">Sin rutas cerradas en el periodo seleccionado.</p>
+      </div>
+    } @else {
+      <ul class="divide-y divide-ink-100">
+        @for (r of rows(); track r.id) {
+          <li class="flex flex-wrap items-center gap-3 px-4 py-3 hover:bg-ink-50/60">
+            <div class="flex min-w-[200px] flex-1 flex-col">
+              <a [routerLink]="['/app/routes', r.id]" class="font-semibold text-ink-900 hover:text-brand-600">{{ r.name }}</a>
+              <span class="text-xs text-ink-500">
+                {{ r.driver?.name ?? 'Sin operador' }} · {{ r.vehicle?.plate ?? 'Sin unidad' }}
+              </span>
+            </div>
+            <span class="rounded-md px-2 py-0.5 text-[11px] font-bold" [class]="tonePill(r.status)">{{ ROUTE_LABEL[r.status] }}</span>
+            <div class="flex items-center gap-1 text-xs text-ink-500" title="Paradas atendidas">
+              <app-icon name="pin" [size]="13" /> {{ stopsDone(r) }}/{{ stopsTotal(r) }}
+            </div>
+            <div class="flex items-center gap-1 text-xs text-ink-500" title="Distancia">
+              <app-icon name="route" [size]="13" /> {{ (r.totalDistance ?? 0) / 1000 | number: '1.1-1' }} km
+            </div>
+            <div class="min-w-[120px] text-right text-xs text-ink-400">
+              {{ (r.dateEnd ?? r.dateStart) | date: 'dd MMM, HH:mm' }}
+            </div>
+          </li>
+        }
+      </ul>
+    }
+  </div>
+</div>

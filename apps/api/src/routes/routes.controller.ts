@@ -89,6 +89,20 @@ export class RoutesController {
     });
   }
 
+  /** Historial operativo: rutas cerradas por rango de fechas. */
+  @Get('history')
+  @Roles(...DISPATCH)
+  history(
+    @CurrentUser() user: User,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('driverId') driverId?: string,
+    @Query('q') q?: string,
+    @Query('enterpriseId') eid?: string,
+  ) {
+    return this.service.history(resolveEnterpriseId(user, eid), { from, to, driverId, q });
+  }
+
   @Get(':id')
   get(@CurrentUser() user: User, @Param('id') id: string, @Query('enterpriseId') eid?: string) {
     return this.service.get(resolveEnterpriseId(user, eid), id);

@@ -72,6 +72,7 @@ export class ShellComponent implements OnInit {
         { path: '/app/templates', label: 'Plantillas de ruta', icon: 'template' },
         { path: '/app/tracking', label: 'Seguimiento', icon: 'map' },
         { path: '/app/reports', label: 'Reportes', icon: 'report', roles: ['SUPER', 'ADMIN', 'MANAGER', 'LOGISTICS'] },
+        { path: '/app/history', label: 'Historial', icon: 'history', roles: ['SUPER', 'ADMIN', 'MANAGER', 'LOGISTICS'] },
       ],
     },
     {

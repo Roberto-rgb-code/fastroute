@@ -127,6 +127,41 @@ export class RoutesService {
     return route;
   }
 
+  /**
+   * Historial operativo: rutas cerradas (COMPLETED/FINISHED/CANCELLED)
+   * dentro de un rango de fechas, ordenadas por cierre descendente.
+   */
+  history(
+    enterpriseId: string,
+    opts: { from?: string; to?: string; driverId?: string; q?: string } = {},
+  ) {
+    const where: Prisma.RouteWhereInput = {
+      enterpriseId,
+      status: { in: [...TERMINAL_ROUTE_STATUSES] },
+    };
+    if (opts.driverId) where.driverId = opts.driverId;
+    if (opts.q) {
+      where.OR = [
+        { name: { contains: opts.q, mode: 'insensitive' } },
+        { driver: { name: { contains: opts.q, mode: 'insensitive' } } },
+        { vehicle: { plate: { contains: opts.q, mode: 'insensitive' } } },
+      ];
+    }
+    if (opts.from || opts.to) {
+      const range: Prisma.DateTimeFilter = {};
+      if (opts.from) range.gte = new Date(`${opts.from}T00:00:00`);
+      if (opts.to) range.lte = new Date(`${opts.to}T23:59:59`);
+      where.OR = [{ dateEnd: range }, { dateEnd: null, dateStart: range }];
+    }
+
+    return this.prisma.route.findMany({
+      where,
+      orderBy: [{ dateEnd: 'desc' }, { dateStart: 'desc' }],
+      include: LIST_INCLUDE,
+      take: 300,
+    });
+  }
+
   /** App móvil: rutas del conductor (RN-USR-01). */
   driverRoutes(driverId: string) {
     return this.prisma.route.findMany({
