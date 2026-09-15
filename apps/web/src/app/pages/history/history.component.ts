@@ -6,12 +6,13 @@ import { ApiService } from '../../core/api.service';
 import { Driver, RouteSummary } from '../../core/models';
 import { ROUTE_BADGE, ROUTE_LABEL } from '../../core/status';
 import { IconComponent } from '../../shared/icon.component';
+import { ModulePageComponent } from '../../shared/module-page.component';
 
 /** Historial operativo: rutas cerradas (finalizadas/canceladas) con filtros y timeline. */
 @Component({
   selector: 'app-history',
   standalone: true,
-  imports: [FormsModule, RouterLink, DatePipe, DecimalPipe, IconComponent],
+  imports: [FormsModule, RouterLink, DatePipe, DecimalPipe, IconComponent, ModulePageComponent],
   templateUrl: './history.component.html',
 })
 export class HistoryComponent implements OnInit {

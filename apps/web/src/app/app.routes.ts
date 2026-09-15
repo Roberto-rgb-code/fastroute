@@ -46,6 +46,14 @@ export const routes: Routes = [
         loadComponent: () => import('./pages/tracking/tracking.component').then((m) => m.TrackingComponent),
       },
       {
+        path: 'weather',
+        loadComponent: () => import('./pages/weather/weather.component').then((m) => m.WeatherComponent),
+      },
+      {
+        path: 'messages',
+        loadComponent: () => import('./pages/messages/messages.component').then((m) => m.MessagesComponent),
+      },
+      {
         path: 'reports',
         loadComponent: () => import('./pages/reports/reports.component').then((m) => m.ReportsComponent),
       },

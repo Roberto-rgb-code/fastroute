@@ -307,17 +307,11 @@
                 <span class="inline-flex items-center gap-1.5"><i class="h-2 w-2 rounded-full bg-brand-600"></i> Pendiente</span>
                 <span class="inline-flex items-center gap-1.5"><i class="h-2 w-2 rounded-full bg-ok"></i> Atendida</span>
                 <span class="inline-flex items-center gap-1.5"><i class="h-2 w-2 rounded-full bg-danger"></i> Con problema</span>
-                @if (weather(); as w) {
-                  <span class="inline-flex items-center gap-1.5 rounded-full bg-sky-50 px-2 py-0.5 font-semibold text-sky-700" [title]="w.now.label + ' · viento ' + (w.now.windKmh ?? 0) + ' km/h'">
-                    <app-icon name="weather" [size]="13" />
-                    {{ w.now.tempC != null ? (w.now.tempC | number: '1.0-0') + '°C' : '—' }} · {{ w.now.label }}
-                  </span>
-                } @else if (weatherLoading()) {
-                  <span class="inline-flex items-center gap-1.5 text-ink-400"><app-icon name="weather" [size]="13" /> Cargando clima…</span>
-                }
                 @if (isTrackable(r)) {
                   <a class="ml-auto font-semibold text-brand-600" routerLink="/app/tracking" [queryParams]="{ route: r.id }">Ver en vivo →</a>
                 }
+                <a class="font-semibold text-sky-700" routerLink="/app/weather">Clima →</a>
+                <a class="font-semibold text-brand-600" routerLink="/app/messages">Mensajes →</a>
               </div>
             </div>
           }

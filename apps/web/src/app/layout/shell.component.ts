@@ -71,6 +71,8 @@ export class ShellComponent implements OnInit {
         { path: '/app/routes', label: 'Rutas del día', icon: 'route', badge: () => this.pendingApprovals() },
         { path: '/app/templates', label: 'Plantillas de ruta', icon: 'template' },
         { path: '/app/tracking', label: 'Seguimiento', icon: 'map' },
+        { path: '/app/weather', label: 'Clima', icon: 'weather' },
+        { path: '/app/messages', label: 'Mensajes', icon: 'message' },
         { path: '/app/reports', label: 'Reportes', icon: 'report', roles: ['SUPER', 'ADMIN', 'MANAGER', 'LOGISTICS'] },
         { path: '/app/history', label: 'Historial', icon: 'history', roles: ['SUPER', 'ADMIN', 'MANAGER', 'LOGISTICS'] },
       ],

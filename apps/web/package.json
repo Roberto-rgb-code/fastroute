@@ -12,6 +12,7 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:ci": "jest --ci --coverage --maxWorkers=2",
+    "typecheck": "tsc -p tsconfig.app.json --noEmit",
     "test:karma": "ng test --watch=false --browsers=ChromeHeadless"
   },
   "private": true,

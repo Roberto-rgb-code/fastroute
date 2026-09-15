@@ -28,6 +28,7 @@ export class MapService {
   readonly styleUrl = signal(MAPBOX_GL_FALLBACK_STYLE);
   readonly mapStyleUrl = signal(MAPBOX_GL_FALLBACK_STYLE);
   private loaded = false;
+  private readonly directionsCache = new Map<string, DirectionsResult>();
 
   async ensureConfig(): Promise<string | null> {
     if (this.loaded && this.token()) return this.token();
@@ -142,9 +143,16 @@ export class MapService {
   async fetchDirections(coords: [number, number][]): Promise<DirectionsResult | null> {
     const token = this.token();
     if (!token || coords.length < 2) return null;
+    if (coords.length > 12) return null;
+
+    const key = coords.map((c) => `${c[0].toFixed(5)},${c[1].toFixed(5)}`).join('|');
+    const cached = this.directionsCache.get(key);
+    if (cached) return cached;
+
     const path = coords.map((c) => `${c[0]},${c[1]}`).join(';');
+    const profile = coords.length > 6 ? 'driving' : 'driving-traffic';
     const url =
-      `https://api.mapbox.com/directions/v5/mapbox/driving-traffic/${path}` +
+      `https://api.mapbox.com/directions/v5/mapbox/${profile}/${path}` +
       `?geometries=geojson&overview=full&annotations=duration,distance&access_token=${token}`;
     try {
       const res = await fetch(url);
@@ -152,11 +160,13 @@ export class MapService {
       const json = await res.json();
       const route = json.routes?.[0];
       if (!route?.geometry?.coordinates?.length) return null;
-      return {
+      const result: DirectionsResult = {
         coordinates: route.geometry.coordinates as [number, number][],
         distanceM: route.distance ?? 0,
         durationS: route.duration ?? 0,
       };
+      this.directionsCache.set(key, result);
+      return result;
     } catch {
       return null;
     }
@@ -259,7 +269,7 @@ export class MapService {
           'raster-particle-speed-factor': 0.4,
           'raster-particle-fade-opacity-factor': 0.9,
           'raster-particle-reset-rate-factor': 0.4,
-          'raster-particle-count': 2048,
+          'raster-particle-count': 640,
           'raster-particle-max-speed': 40,
           'raster-particle-color': [
             'interpolate',

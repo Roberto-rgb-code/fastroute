@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ApiService } from '../../core/api.service';
 import { AuthService } from '../../core/auth.service';
+import { DEMO_ROUTE_NAME, MAP_OVERVIEW_MAX_STOPS } from '../../core/demo.config';
 import {
   Driver,
   EnterpriseSettings,
@@ -15,7 +16,6 @@ import {
   TERMINAL_ROUTE_STATUSES,
   TRACKABLE_ROUTE_STATUSES,
   Vehicle,
-  WeatherResult,
 } from '../../core/models';
 import {
   DELIVER_BADGE,
@@ -82,10 +82,6 @@ export class RoutesWorkspaceComponent implements OnInit {
   /** Paradas desplegadas en la línea de tiempo. */
   expanded = signal<Record<string, boolean>>({});
 
-  /** Clima de la primera parada de la ruta seleccionada. */
-  weather = signal<WeatherResult | null>(null);
-  weatherLoading = signal(false);
-
   readonly ROUTE_LABEL = ROUTE_LABEL;
   readonly ROUTE_BADGE = ROUTE_BADGE;
   readonly EVENT_LABEL = EVENT_LABEL;
@@ -94,6 +90,37 @@ export class RoutesWorkspaceComponent implements OnInit {
   readonly DELIVER_BADGE = DELIVER_BADGE;
   readonly STOP_TYPE_LABEL = STOP_TYPE_LABEL;
   readonly INCIDENT_LABEL = INCIDENT_LABEL;
+
+  readonly mapPoints = computed((): MapPoint[] => {
+    const color = (status?: string) => (status === 'COMPLETED' ? '#059669' : status === 'ISSUE' ? '#dc2626' : '#4f46e5');
+    const d = this.detail();
+    if (d) {
+      return d.events
+        .filter((e) => e.stop)
+        .map((e, i) => ({
+          lat: e.evLat ?? e.stop.lat,
+          lng: e.evLng ?? e.stop.lng,
+          label: e.stop.label,
+          color: color(e.status),
+          index: e.position ?? i + 1,
+        }));
+    }
+    const pts: MapPoint[] = [];
+    for (const r of this.visible()) {
+      for (const e of r.events ?? []) {
+        if (!e.stop) continue;
+        pts.push({
+          lat: e.evLat ?? e.stop.lat,
+          lng: e.evLng ?? e.stop.lng,
+          label: `${r.name} · ${e.stop.label}`,
+          color: color(e.status),
+          index: e.position ?? pts.length + 1,
+        });
+        if (pts.length >= MAP_OVERVIEW_MAX_STOPS) return pts;
+      }
+    }
+    return pts;
+  });
 
   filters: { key: Filter; label: string }[] = [
     { key: 'ALL', label: 'Todas' },
@@ -173,6 +200,13 @@ export class RoutesWorkspaceComponent implements OnInit {
       next: (r) => {
         this.routes.set(r);
         this.loadingList.set(false);
+        if (!this.selectedId() && !this.route.snapshot.paramMap.get('id')) {
+          const demo =
+            r.find((x) => x.name === DEMO_ROUTE_NAME) ??
+            r.find((x) => x.status === 'ENROUTE') ??
+            r[0];
+          if (demo) void this.router.navigate(['/app/routes', demo.id], { replaceUrl: true });
+        }
       },
       error: () => this.loadingList.set(false),
     });
@@ -213,28 +247,12 @@ export class RoutesWorkspaceComponent implements OnInit {
       next: (r) => {
         this.detail.set(r);
         this.loadingDetail.set(false);
-        this.loadWeather();
       },
       error: () => {
         this.loadingDetail.set(false);
         this.notify('err', 'No se encontró la ruta');
         void this.router.navigate(['/app/routes']);
       },
-    });
-  }
-
-  /** Carga el clima usando la primera parada geolocalizada de la ruta. */
-  loadWeather() {
-    this.weather.set(null);
-    const first = this.mapPoints()[0];
-    if (!first) return;
-    this.weatherLoading.set(true);
-    this.api.weather(first.lat, first.lng).subscribe({
-      next: (w) => {
-        this.weather.set(w);
-        this.weatherLoading.set(false);
-      },
-      error: () => this.weatherLoading.set(false),
     });
   }
 
@@ -507,36 +525,6 @@ export class RoutesWorkspaceComponent implements OnInit {
     const [y, m, dd] = d.split('-').map(Number);
     return new Date(y, m - 1, dd).toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' });
   }
-  /** Paradas del trayecto seleccionado, o de todas las rutas visibles si aún no hay selección. */
-  mapPoints(): MapPoint[] {
-    const color = (status?: string) => (status === 'COMPLETED' ? '#059669' : status === 'ISSUE' ? '#dc2626' : '#4f46e5');
-    const d = this.detail();
-    if (d) {
-      return d.events
-        .filter((e) => e.stop)
-        .map((e, i) => ({
-          lat: e.evLat ?? e.stop.lat,
-          lng: e.evLng ?? e.stop.lng,
-          label: e.stop.label,
-          color: color(e.status),
-          index: e.position ?? i + 1,
-        }));
-    }
-    const pts: MapPoint[] = [];
-    for (const r of this.visible()) {
-      for (const e of r.events ?? []) {
-        if (!e.stop) continue;
-        pts.push({
-          lat: e.evLat ?? e.stop.lat,
-          lng: e.evLng ?? e.stop.lng,
-          label: `${r.name} · ${e.stop.label}`,
-          color: color(e.status),
-          index: e.position ?? pts.length + 1,
-        });
-      }
-    }
-    return pts;
-  }
   kmTraveled(r: RouteDetail): string {
     return r.kmInitial && r.kmFinal ? `${(r.kmFinal - r.kmInitial).toFixed(0)} km` : '—';
   }
@@ -547,9 +535,9 @@ export class RoutesWorkspaceComponent implements OnInit {
   private loadPanels(): { list: boolean; map: boolean } {
     try {
       const v = JSON.parse(localStorage.getItem(PANELS_KEY) ?? '{}');
-      return { list: v.list ?? true, map: v.map ?? true };
+      return { list: v.list ?? true, map: v.map ?? false };
     } catch {
-      return { list: true, map: true };
+      return { list: true, map: false };
     }
   }
 

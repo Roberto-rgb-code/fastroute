@@ -1,0 +1,85 @@
+<app-module-page
+  title="Pronóstico del clima"
+  subtitle="Open-Meteo por ruta activa o ubicación demo (Guadalajara)."
+  icon="weather"
+>
+  <div class="flex flex-wrap items-end gap-3 rounded-2xl border border-ink-200 bg-white p-4 shadow-sm">
+    <label class="flex min-w-[220px] flex-1 flex-col gap-1 text-xs font-semibold text-ink-500">
+      Ruta / ubicación
+      <select
+        class="rounded-lg border border-ink-200 px-3 py-2 text-sm text-ink-900"
+        [ngModel]="routeId()"
+        (ngModelChange)="onRouteChange($event)"
+      >
+        <option value="">Demo — {{ demoLabel }}</option>
+        @for (r of routes(); track r.id) {
+          <option [value]="r.id">{{ r.name }}</option>
+        }
+      </select>
+    </label>
+    <button
+      type="button"
+      class="inline-flex items-center gap-1.5 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white"
+      (click)="routeId() ? onRouteChange(routeId()) : loadDemo()"
+    >
+      <app-icon name="weather" [size]="16" /> Actualizar
+    </button>
+  </div>
+
+  @if (loading()) {
+    <p class="py-16 text-center text-sm text-ink-400">Cargando pronóstico…</p>
+  } @else {
+    @if (weather(); as w) {
+    <div class="grid gap-4 md:grid-cols-[1fr_1.2fr]">
+      <div class="rounded-2xl border border-ink-200 bg-gradient-to-br from-sky-50 to-white p-6 shadow-sm">
+        <p class="text-xs font-semibold uppercase tracking-wide text-sky-700">{{ locationLabel() }}</p>
+        <p class="mt-2 text-4xl font-bold text-ink-900">
+          {{ w.now.tempC != null ? (w.now.tempC | number: '1.0-0') + '°C' : '—' }}
+        </p>
+        <p class="mt-1 text-lg font-semibold text-ink-700">{{ w.now.label }}</p>
+        <ul class="mt-4 space-y-2 text-sm text-ink-600">
+          <li class="flex justify-between">
+            <span>Viento</span>
+            <strong>{{ w.now.windKmh ?? '—' }} km/h</strong>
+          </li>
+          <li class="flex justify-between">
+            <span>Precipitación</span>
+            <strong>{{ (w.now.precipMm ?? 0) | number: '1.1-1' }} mm</strong>
+          </li>
+        </ul>
+        @if (routeId()) {
+          <a class="mt-5 inline-flex text-sm font-semibold text-brand-600" [routerLink]="['/app/routes', routeId()]">
+            Ver ruta en mapa →
+          </a>
+        }
+      </div>
+
+      <div class="overflow-hidden rounded-2xl border border-ink-200 bg-white shadow-sm">
+        <p class="border-b border-ink-100 px-4 py-3 text-sm font-bold text-ink-900">Próximas 24 h</p>
+        <div class="max-h-[320px] overflow-y-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="sticky top-0 bg-ink-50 text-ink-500">
+              <tr>
+                <th class="px-3 py-2">Hora</th>
+                <th class="px-3 py-2">Temp</th>
+                <th class="px-3 py-2">Lluvia</th>
+                <th class="px-3 py-2">Viento</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (h of w.hourly; track h.time) {
+                <tr class="border-t border-ink-50">
+                  <td class="px-3 py-2 text-ink-600">{{ h.time | date: 'HH:mm' }}</td>
+                  <td class="px-3 py-2 font-semibold text-ink-900">{{ h.tempC | number: '1.0-0' }}°</td>
+                  <td class="px-3 py-2">{{ h.precipMm | number: '1.1-1' }} mm</td>
+                  <td class="px-3 py-2">{{ h.windKmh | number: '1.0-0' }} km/h</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    }
+  }
+</app-module-page>

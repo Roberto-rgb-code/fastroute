@@ -119,11 +119,14 @@ export class RouteMapComponent implements AfterViewInit, OnDestroy {
   private baseStyle = MAPBOX_GL_FALLBACK_STYLE;
   private resizeObs?: ResizeObserver;
   private booted = false;
+  private drawTimer?: ReturnType<typeof setTimeout>;
 
   constructor() {
     effect(() => {
       const pts = this.points();
-      if (this.ready) void this.draw(pts);
+      if (!this.ready) return;
+      clearTimeout(this.drawTimer);
+      this.drawTimer = setTimeout(() => void this.draw(pts), 150);
     });
   }
 
@@ -278,6 +281,7 @@ export class RouteMapComponent implements AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy() {
+    clearTimeout(this.drawTimer);
     this.resizeObs?.disconnect();
     this.markers.forEach((m) => m.remove());
     this.map?.remove();
