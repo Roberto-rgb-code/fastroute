@@ -22,6 +22,8 @@ export default function RootLayout() {
           <Stack.Screen name="routes" options={{ title: 'Mis rutas' }} />
           <Stack.Screen name="route/[id]" options={{ title: 'Ruta' }} />
           <Stack.Screen name="chat/[id]" options={{ title: 'Chat con central' }} />
+          <Stack.Screen name="expenses/[id]" options={{ title: 'Gastos' }} />
+          <Stack.Screen name="incident/[id]" options={{ title: 'Incidencia' }} />
         </Stack>
       </AuthProvider>
     </SafeAreaProvider>

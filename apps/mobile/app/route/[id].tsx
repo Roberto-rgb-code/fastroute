@@ -1,23 +1,38 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Location from 'expo-location';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import {
   Alert,
+  Image,
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { api, RouteDetail, RouteStatus } from '../../src/api';
+import { api, DeliverStatus, RouteDetail, RouteStatus } from '../../src/api';
 import { Badge, Button, Card } from '../../src/components/ui';
+import { chooseImage, currentCoords } from '../../src/media';
 import { theme } from '../../src/theme';
+
+const DELIVER_OPTS: { key: DeliverStatus; label: string; variant: 'ok' | 'warn' | 'danger' }[] = [
+  { key: 'DELIVERED', label: 'Entregado', variant: 'ok' },
+  { key: 'PARTIAL', label: 'Parcial', variant: 'warn' },
+  { key: 'NOTDELIVERED', label: 'No entregado', variant: 'danger' },
+];
 
 export default function RouteScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const [route, setRoute] = useState<RouteDetail | null>(null);
   const [busy, setBusy] = useState(false);
+
+  // Modales
+  const [startOpen, setStartOpen] = useState(false);
+  const [closeOpen, setCloseOpen] = useState(false);
+  const [evidenceFor, setEvidenceFor] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -39,7 +54,6 @@ export default function RouteScreen() {
     }
   }, [id]);
 
-  // Periodically publish location while enroute
   useEffect(() => {
     if (route?.status !== 'ENROUTE') return;
     publishLocation();
@@ -64,31 +78,19 @@ export default function RouteScreen() {
     }
   };
 
-  const toggle = async (itemId: string, done: boolean) => {
-    setRoute(await api.toggleChecklist(route.id, itemId, done));
-  };
-
-  const completeStop = (eventId: string) => {
-    Alert.alert('Confirmar entrega', '¿Marcar esta parada como entregada?', [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Entregar',
-        onPress: async () => {
-          let coords: { evLat?: number; evLng?: number } = {};
-          try {
-            const pos = await Location.getCurrentPositionAsync({});
-            coords = { evLat: pos.coords.latitude, evLng: pos.coords.longitude };
-          } catch {
-            /* optional */
-          }
-          setRoute(await api.completeStop(route.id, eventId, { deliverStatus: 'DELIVERED', ...coords }));
-        },
-      },
-    ]);
+  const toggle = async (itemId: string, done: boolean, needsPhoto: boolean) => {
+    let photoUrl: string | undefined;
+    if (done && needsPhoto) {
+      const uri = await chooseImage();
+      if (!uri) return;
+      photoUrl = uri;
+    }
+    setRoute(await api.toggleChecklist(route.id, itemId, done, photoUrl));
   };
 
   const doneCount = route.events.filter((e) => e.status === 'COMPLETED').length;
   const checklistPending = route.checklist.some((c) => c.required && !c.done);
+  const allStopsDone = route.events.length > 0 && doneCount === route.events.length;
 
   const renderActions = () => {
     switch (route.status) {
@@ -98,8 +100,8 @@ export default function RouteScreen() {
       case 'CHECKLIST_PENDING':
         return (
           <Button
-            title={checklistPending ? 'Completa el checklist obligatorio' : 'Iniciar ruta'}
-            onPress={() => changeStatus('ENROUTE')}
+            title={checklistPending ? 'Completa el checklist obligatorio' : 'Registrar km/gas e iniciar'}
+            onPress={() => setStartOpen(true)}
             disabled={checklistPending}
             variant="ok"
             loading={busy}
@@ -108,7 +110,12 @@ export default function RouteScreen() {
       case 'ENROUTE':
         return (
           <View style={{ gap: 8 }}>
-            <Button title="Finalizar ruta" onPress={() => changeStatus('FINISHED')} loading={busy} />
+            <Button
+              title="Cerrar destino (km/gas final)"
+              variant="ok"
+              onPress={() => setCloseOpen(true)}
+              loading={busy}
+            />
             <Button title="Pausar" variant="ghost" onPress={() => changeStatus('PAUSED')} />
           </View>
         );
@@ -131,9 +138,17 @@ export default function RouteScreen() {
         <Text style={styles.meta}>
           {route.vehicle?.plate ?? 'Sin vehículo'} · {route.client?.name ?? 'Sin cliente'}
         </Text>
-        <TouchableOpacity style={styles.chatBtn} onPress={() => router.push(`/chat/${route.id}`)}>
-          <Text style={styles.chatBtnText}>💬  Chat con central</Text>
-        </TouchableOpacity>
+        <View style={styles.quickRow}>
+          <TouchableOpacity style={styles.quickBtn} onPress={() => router.push(`/chat/${route.id}`)}>
+            <Text style={styles.quickText}>💬 Chat</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.quickBtn} onPress={() => router.push(`/expenses/${route.id}`)}>
+            <Text style={styles.quickText}>🧾 Gastos</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.quickBtn, styles.quickDanger]} onPress={() => router.push(`/incident/${route.id}`)}>
+            <Text style={[styles.quickText, { color: theme.danger }]}>⚠️ Incidencia</Text>
+          </TouchableOpacity>
+        </View>
         <View style={styles.statsRow}>
           <View style={styles.stat}>
             <Text style={styles.statValue}>{doneCount}/{route.events.length}</Text>
@@ -152,11 +167,12 @@ export default function RouteScreen() {
         <Card>
           <Text style={styles.sectionTitle}>Checklist pre-ruta</Text>
           {route.checklist.map((c) => (
-            <TouchableOpacity key={c.id} style={styles.checkItem} onPress={() => toggle(c.id, !c.done)}>
+            <TouchableOpacity key={c.id} style={styles.checkItem} onPress={() => toggle(c.id, !c.done, c.photo)}>
               <View style={[styles.checkbox, c.done && styles.checkboxOn]}>
                 {c.done && <Text style={styles.checkMark}>✓</Text>}
               </View>
               <Text style={styles.checkLabel}>{c.label}</Text>
+              {c.photo && <Text style={styles.photoTag}>📷</Text>}
               {c.required && <Text style={styles.req}>Obligatorio</Text>}
             </TouchableOpacity>
           ))}
@@ -183,9 +199,9 @@ export default function RouteScreen() {
               </View>
               {route.status === 'ENROUTE' && !completed && (
                 <Button
-                  title="Marcar entregada"
+                  title="Registrar evidencia"
                   variant="ok"
-                  onPress={() => completeStop(e.id)}
+                  onPress={() => setEvidenceFor(e.id)}
                   style={{ marginTop: 12 }}
                 />
               )}
@@ -194,8 +210,257 @@ export default function RouteScreen() {
         })}
       </View>
 
-      <View style={{ marginTop: 4, marginBottom: 30 }}>{renderActions()}</View>
+      <View style={{ marginTop: 4, marginBottom: 30 }}>
+        {renderActions()}
+        {route.status === 'ENROUTE' && !allStopsDone && (
+          <Text style={styles.hint}>Registra la evidencia de cada parada antes de cerrar el destino.</Text>
+        )}
+      </View>
+
+      {/* Modal: checklist de salida (km/gas inicial) */}
+      <StartModal
+        visible={startOpen}
+        onClose={() => setStartOpen(false)}
+        onDone={(r) => {
+          setRoute(r);
+          setStartOpen(false);
+        }}
+        routeId={route.id}
+      />
+
+      {/* Modal: cierre de destino (km/gas final) */}
+      <CloseModal
+        visible={closeOpen}
+        onClose={() => setCloseOpen(false)}
+        onDone={(r) => {
+          setRoute(r);
+          setCloseOpen(false);
+        }}
+        routeId={route.id}
+      />
+
+      {/* Modal: evidencia de parada */}
+      <EvidenceModal
+        visible={!!evidenceFor}
+        onClose={() => setEvidenceFor(null)}
+        onDone={(r) => {
+          setRoute(r);
+          setEvidenceFor(null);
+        }}
+        routeId={route.id}
+        eventId={evidenceFor}
+      />
     </ScrollView>
+  );
+}
+
+// ─────────────────────────── Modales ───────────────────────────
+
+function StartModal({
+  visible,
+  onClose,
+  onDone,
+  routeId,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onDone: (r: RouteDetail) => void;
+  routeId: string;
+}) {
+  const [km, setKm] = useState('');
+  const [gas, setGas] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const submit = async () => {
+    if (!km || !gas) return;
+    setBusy(true);
+    try {
+      const coords = await currentCoords();
+      const r = await api.startRoute(routeId, {
+        kmInitial: Number(km),
+        gasInitial: Number(gas),
+        lat: coords.lat,
+        lng: coords.lng,
+      });
+      onDone(r);
+      setKm('');
+      setGas('');
+    } catch (err) {
+      Alert.alert('No se pudo iniciar', String(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <SheetModal visible={visible} onClose={onClose} title="Checklist de salida">
+      <Text style={styles.fieldLabel}>Kilómetros iniciales</Text>
+      <TextInput style={styles.modalInput} value={km} onChangeText={setKm} keyboardType="decimal-pad" placeholder="0" placeholderTextColor={theme.ink400} />
+      <Text style={styles.fieldLabel}>Gasolina inicial (%)</Text>
+      <TextInput style={styles.modalInput} value={gas} onChangeText={setGas} keyboardType="decimal-pad" placeholder="0" placeholderTextColor={theme.ink400} />
+      <Button title="Iniciar ruta" variant="ok" onPress={submit} loading={busy} disabled={!km || !gas} style={{ marginTop: 8 }} />
+    </SheetModal>
+  );
+}
+
+function CloseModal({
+  visible,
+  onClose,
+  onDone,
+  routeId,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onDone: (r: RouteDetail) => void;
+  routeId: string;
+}) {
+  const [km, setKm] = useState('');
+  const [gas, setGas] = useState('');
+  const [img, setImg] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const submit = async () => {
+    if (!km || !gas) return;
+    setBusy(true);
+    try {
+      const coords = await currentCoords();
+      const r = await api.closeDestination(routeId, {
+        kmFinal: Number(km),
+        gasFinal: Number(gas),
+        finalImg: img ?? undefined,
+        finalLat: coords.lat,
+        finalLng: coords.lng,
+      });
+      onDone(r);
+      setKm('');
+      setGas('');
+      setImg(null);
+    } catch (err) {
+      Alert.alert('No se pudo cerrar', String(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <SheetModal visible={visible} onClose={onClose} title="Cierre de destino">
+      <Text style={styles.fieldLabel}>Kilómetros finales</Text>
+      <TextInput style={styles.modalInput} value={km} onChangeText={setKm} keyboardType="decimal-pad" placeholder="0" placeholderTextColor={theme.ink400} />
+      <Text style={styles.fieldLabel}>Gasolina final (%)</Text>
+      <TextInput style={styles.modalInput} value={gas} onChangeText={setGas} keyboardType="decimal-pad" placeholder="0" placeholderTextColor={theme.ink400} />
+      <TouchableOpacity style={styles.photoBtn} onPress={async () => setImg((await chooseImage()) ?? img)}>
+        {img ? <Image source={{ uri: img }} style={styles.preview} /> : <Text style={styles.photoText}>📷 Foto/firma de cierre (opcional)</Text>}
+      </TouchableOpacity>
+      <Button title="Cerrar destino" variant="ok" onPress={submit} loading={busy} disabled={!km || !gas} style={{ marginTop: 4 }} />
+    </SheetModal>
+  );
+}
+
+function EvidenceModal({
+  visible,
+  onClose,
+  onDone,
+  routeId,
+  eventId,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onDone: (r: RouteDetail) => void;
+  routeId: string;
+  eventId: string | null;
+}) {
+  const [images, setImages] = useState<string[]>([]);
+  const [deliver, setDeliver] = useState<DeliverStatus>('DELIVERED');
+  const [comment, setComment] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const addPhoto = async () => {
+    const uri = await chooseImage();
+    if (uri) setImages((p) => [...p, uri]);
+  };
+
+  const submit = async () => {
+    if (!eventId) return;
+    setBusy(true);
+    try {
+      const coords = await currentCoords();
+      const r = await api.submitEvidence(routeId, eventId, {
+        images,
+        deliverStatus: deliver,
+        comment: comment.trim() || undefined,
+        evLat: coords.lat,
+        evLng: coords.lng,
+      });
+      onDone(r);
+      setImages([]);
+      setComment('');
+      setDeliver('DELIVERED');
+    } catch (err) {
+      Alert.alert('No se pudo registrar', String(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <SheetModal visible={visible} onClose={onClose} title="Evidencia de parada">
+      <View style={styles.deliverRow}>
+        {DELIVER_OPTS.map((o) => (
+          <TouchableOpacity
+            key={o.key}
+            style={[styles.deliverChip, deliver === o.key && styles.deliverChipOn]}
+            onPress={() => setDeliver(o.key)}
+          >
+            <Text style={[styles.deliverText, deliver === o.key && { color: '#fff' }]}>{o.label}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+      <View style={styles.photoRow}>
+        {images.map((p, i) => (
+          <Image key={i} source={{ uri: p }} style={styles.thumb} />
+        ))}
+        <TouchableOpacity style={styles.addPhoto} onPress={addPhoto}>
+          <Text style={{ fontSize: 22, color: theme.ink400 }}>＋</Text>
+        </TouchableOpacity>
+      </View>
+      <TextInput
+        style={[styles.modalInput, { minHeight: 60, textAlignVertical: 'top' }]}
+        value={comment}
+        onChangeText={setComment}
+        placeholder="Comentario (opcional)"
+        placeholderTextColor={theme.ink400}
+        multiline
+      />
+      <Button title="Guardar evidencia" variant="ok" onPress={submit} loading={busy} style={{ marginTop: 4 }} />
+    </SheetModal>
+  );
+}
+
+function SheetModal({
+  visible,
+  onClose,
+  title,
+  children,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={styles.backdrop}>
+        <View style={styles.sheet}>
+          <View style={styles.sheetHeader}>
+            <Text style={styles.sheetTitle}>{title}</Text>
+            <TouchableOpacity onPress={onClose}>
+              <Text style={styles.sheetClose}>✕</Text>
+            </TouchableOpacity>
+          </View>
+          <ScrollView>{children}</ScrollView>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -205,6 +470,10 @@ const styles = StyleSheet.create({
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   title: { fontSize: 18, fontWeight: '800', color: theme.ink900, flex: 1, marginRight: 8 },
   meta: { color: theme.ink500, fontSize: 13, marginTop: 6 },
+  quickRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
+  quickBtn: { backgroundColor: theme.brand50, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 10 },
+  quickDanger: { backgroundColor: theme.dangerBg },
+  quickText: { color: theme.brand, fontWeight: '700', fontSize: 12 },
   statsRow: { flexDirection: 'row', gap: 24, marginTop: 14 },
   stat: {},
   statValue: { fontSize: 20, fontWeight: '800', color: theme.ink900 },
@@ -223,6 +492,7 @@ const styles = StyleSheet.create({
   checkboxOn: { backgroundColor: theme.ok, borderColor: theme.ok },
   checkMark: { color: '#fff', fontWeight: '800', fontSize: 13 },
   checkLabel: { flex: 1, fontSize: 14, color: theme.ink900 },
+  photoTag: { fontSize: 13 },
   req: { fontSize: 11, color: theme.warn, fontWeight: '700' },
   stopRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   pos: {
@@ -238,13 +508,50 @@ const styles = StyleSheet.create({
   stopLabel: { fontSize: 15, fontWeight: '600', color: theme.ink900 },
   stopAddr: { fontSize: 13, color: theme.ink500 },
   urgent: { fontSize: 11, color: theme.danger, fontWeight: '700' },
-  chatBtn: {
-    marginTop: 12,
-    alignSelf: 'flex-start',
-    backgroundColor: theme.brand50,
+  hint: { fontSize: 12, color: theme.ink400, marginTop: 8, textAlign: 'center' },
+  // modal
+  backdrop: { flex: 1, backgroundColor: 'rgba(15,23,42,0.45)', justifyContent: 'flex-end' },
+  sheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 18, maxHeight: '85%' },
+  sheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
+  sheetTitle: { fontSize: 17, fontWeight: '800', color: theme.ink900 },
+  sheetClose: { fontSize: 18, color: theme.ink400, padding: 4 },
+  fieldLabel: { fontSize: 13, fontWeight: '600', color: theme.ink700, marginBottom: 6 },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: theme.ink200,
     borderRadius: 10,
-    paddingVertical: 8,
     paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 15,
+    color: theme.ink900,
+    marginBottom: 12,
   },
-  chatBtnText: { color: theme.brand, fontWeight: '700', fontSize: 13 },
+  photoBtn: {
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: theme.ink200,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+    marginBottom: 12,
+  },
+  photoText: { color: theme.ink500, fontSize: 13 },
+  preview: { width: '100%', height: 140, borderRadius: 8 },
+  deliverRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
+  deliverChip: { flex: 1, borderWidth: 1, borderColor: theme.ink200, borderRadius: 10, paddingVertical: 10, alignItems: 'center' },
+  deliverChipOn: { backgroundColor: theme.brand, borderColor: theme.brand },
+  deliverText: { fontSize: 12, fontWeight: '700', color: theme.ink700 },
+  photoRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
+  thumb: { width: 60, height: 60, borderRadius: 8, backgroundColor: theme.ink100 },
+  addPhoto: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: theme.ink200,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });
