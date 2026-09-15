@@ -112,6 +112,7 @@ model Enterprise {
   stops     Stop[]
   templates RouteTemplate[]
   routes    Route[]
+  messages  Message[]
 
   @@map("enterprise")
 }
@@ -126,6 +127,7 @@ model User {
   enterprise   Enterprise? @relation(fields: [enterpriseId], references: [id], onDelete: Cascade)
   isActive     Boolean     @default(true)
   driver       Driver?
+  messages     Message[]
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 
@@ -300,6 +302,7 @@ model Route {
   checklist     ChecklistEvent[]
   expenses      Expense[]
   incidents     Incident[]
+  messages      Message[]
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 
@@ -307,6 +310,29 @@ model Route {
   @@index([driverId])
   @@index([vehicleId])
   @@map("route")
+}
+
+enum MessageSender {
+  ADMIN
+  DRIVER
+}
+
+model Message {
+  id           String        @id @default(cuid())
+  body         String
+  sender       MessageSender
+  enterpriseId String
+  enterprise   Enterprise    @relation(fields: [enterpriseId], references: [id], onDelete: Cascade)
+  routeId      String
+  route        Route         @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  userId       String?
+  user         User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  readAt       DateTime?
+  createdAt    DateTime      @default(now())
+
+  @@index([routeId])
+  @@index([enterpriseId])
+  @@map("message")
 }
 
 model Expense {

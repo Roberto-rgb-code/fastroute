@@ -29,8 +29,9 @@ import {
 } from '../../core/status';
 import { IconComponent } from '../../shared/icon.component';
 import { MapPoint, RouteMapComponent } from '../../shared/route-map.component';
+import { RouteChatComponent } from '../../shared/route-chat.component';
 
-type Tab = 'info' | 'stops' | 'checklist' | 'expenses' | 'incidents';
+type Tab = 'info' | 'stops' | 'checklist' | 'expenses' | 'incidents' | 'chat';
 type Filter = 'ALL' | 'OPEN' | 'PENDING' | 'ENROUTE' | 'DONE' | 'APPROVALS';
 
 const PANELS_KEY = 'fastroute_routes_panels';
@@ -38,7 +39,7 @@ const PANELS_KEY = 'fastroute_routes_panels';
 @Component({
   selector: 'app-routes-workspace',
   standalone: true,
-  imports: [FormsModule, RouterLink, IconComponent, RouteMapComponent, DecimalPipe],
+  imports: [FormsModule, RouterLink, IconComponent, RouteMapComponent, RouteChatComponent, DecimalPipe],
   templateUrl: './routes-workspace.component.html',
   styleUrl: './routes-workspace.component.scss',
 })
@@ -109,6 +110,7 @@ export class RoutesWorkspaceComponent implements OnInit {
     { key: 'checklist', label: 'Checklist', icon: 'checklist' },
     { key: 'expenses', label: 'Gastos', icon: 'money' },
     { key: 'incidents', label: 'Incidencias', icon: 'alert' },
+    { key: 'chat', label: 'Chat', icon: 'message' },
   ];
 
   visible = computed(() => {

@@ -659,6 +659,12 @@
               }
             </div>
           }
+
+          @if (tab() === 'chat') {
+            <div class="h-[min(60vh,560px)] overflow-hidden rounded-2xl border border-ink-200 bg-ink-50/40">
+              <app-route-chat [routeId]="r.id" />
+            </div>
+          }
         </div>
         </div>
       }

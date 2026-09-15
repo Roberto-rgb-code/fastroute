@@ -18,6 +18,7 @@ import { UsersModule } from './users/users.module';
 import { ReportsModule } from './reports/reports.module';
 import { GeocodingModule } from './geocoding/geocoding.module';
 import { WeatherModule } from './weather/weather.module';
+import { MessagesModule } from './messages/messages.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { WeatherModule } from './weather/weather.module';
     ReportsModule,
     GeocodingModule,
     WeatherModule,
+    MessagesModule,
   ],
   controllers: [AppController, ConfigController],
   providers: [AppService],

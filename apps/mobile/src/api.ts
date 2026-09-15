@@ -103,6 +103,22 @@ export interface AuthUser {
   role: string;
   enterpriseId: string | null;
 }
+export type MessageSender = 'ADMIN' | 'DRIVER';
+export interface Message {
+  id: string;
+  body: string;
+  sender: MessageSender;
+  routeId: string;
+  userId: string | null;
+  user?: { id: string; name: string } | null;
+  readAt: string | null;
+  createdAt: string;
+}
+export interface ClientConfig {
+  mapbox: { token: string; styleUrl: string };
+  googleMaps: { apiKey: string };
+  pusher: { key: string; cluster: string };
+}
 
 export const api = {
   async login(email: string, password: string) {
@@ -145,5 +161,21 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     });
+  },
+  clientConfig() {
+    return request<ClientConfig>('/config/client');
+  },
+  // Chat por ruta (driver ↔ central)
+  messages(routeId: string) {
+    return request<Message[]>(`/routes/${routeId}/messages`);
+  },
+  sendMessage(routeId: string, body: string) {
+    return request<Message>(`/routes/${routeId}/messages`, {
+      method: 'POST',
+      body: JSON.stringify({ body }),
+    });
+  },
+  markMessagesRead(routeId: string) {
+    return request<{ ok: boolean }>(`/routes/${routeId}/messages/read`, { method: 'POST' });
   },
 };

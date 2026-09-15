@@ -380,6 +380,19 @@ export interface ClientConfig {
   pusher: { key: string; cluster: string };
 }
 
+export type MessageSender = 'ADMIN' | 'DRIVER';
+
+export interface Message {
+  id: string;
+  body: string;
+  sender: MessageSender;
+  routeId: string;
+  userId: string | null;
+  user?: { id: string; name: string } | null;
+  readAt: string | null;
+  createdAt: string;
+}
+
 export interface WeatherResult {
   lat: number;
   lng: number;

@@ -20,6 +20,7 @@ import {
   RouteTemplate,
   Stop,
   StopsReport,
+  Message,
   UserRole,
   Vehicle,
   WeatherResult,
@@ -48,6 +49,17 @@ export class ApiService {
   }
   weather(lat: number, lng: number) {
     return this.http.get<WeatherResult>(`${BASE}/weather`, { params: params({ lat, lng }) });
+  }
+
+  // Chat por ruta (web admin ↔ mobile driver)
+  routeMessages(routeId: string) {
+    return this.http.get<Message[]>(`${BASE}/routes/${routeId}/messages`);
+  }
+  sendMessage(routeId: string, body: string) {
+    return this.http.post<Message>(`${BASE}/routes/${routeId}/messages`, { body });
+  }
+  markMessagesRead(routeId: string) {
+    return this.http.post<{ ok: boolean }>(`${BASE}/routes/${routeId}/messages/read`, {});
   }
 
   // Super admin

@@ -1,4 +1,4 @@
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Location from 'expo-location';
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -15,6 +15,7 @@ import { theme } from '../../src/theme';
 
 export default function RouteScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
   const [route, setRoute] = useState<RouteDetail | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -130,6 +131,9 @@ export default function RouteScreen() {
         <Text style={styles.meta}>
           {route.vehicle?.plate ?? 'Sin vehículo'} · {route.client?.name ?? 'Sin cliente'}
         </Text>
+        <TouchableOpacity style={styles.chatBtn} onPress={() => router.push(`/chat/${route.id}`)}>
+          <Text style={styles.chatBtnText}>💬  Chat con central</Text>
+        </TouchableOpacity>
         <View style={styles.statsRow}>
           <View style={styles.stat}>
             <Text style={styles.statValue}>{doneCount}/{route.events.length}</Text>
@@ -234,4 +238,13 @@ const styles = StyleSheet.create({
   stopLabel: { fontSize: 15, fontWeight: '600', color: theme.ink900 },
   stopAddr: { fontSize: 13, color: theme.ink500 },
   urgent: { fontSize: 11, color: theme.danger, fontWeight: '700' },
+  chatBtn: {
+    marginTop: 12,
+    alignSelf: 'flex-start',
+    backgroundColor: theme.brand50,
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  chatBtnText: { color: theme.brand, fontWeight: '700', fontSize: 13 },
 });
