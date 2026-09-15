@@ -242,64 +242,12 @@ export class MapService {
     }
   }
 
-  // ── Viento (raster-particle GFS) ──────────────────────────────────────────
-  /** @see https://docs.mapbox.com/style-spec/reference/layers/#raster-particle */
-  setWind(map: mapboxgl.Map, on: boolean): boolean {
+  // ── Viento: ya no usamos mapbox.gfs-winds (404 en tokens sin acceso GFS). ──
+  /** Limpia restos de capas GFS por si quedaron de versiones anteriores. */
+  clearWindGfs(map: mapboxgl.Map) {
     const SRC = 'fr-wind';
     const LYR = 'fr-wind-particles';
-    if (!on) {
-      if (map.getLayer(LYR)) map.removeLayer(LYR);
-      if (map.getSource(SRC)) map.removeSource(SRC);
-      return true;
-    }
-    try {
-      if (!map.isStyleLoaded()) {
-        map.once('idle', () => this.setWind(map, true));
-        return true;
-      }
-      if (!map.getSource(SRC)) {
-        map.addSource(SRC, {
-          type: 'raster-array',
-          url: 'mapbox://mapbox.gfs-winds',
-          tileSize: 512,
-        } as unknown as mapboxgl.RasterArraySourceSpecification);
-      }
-      if (!map.getLayer(LYR)) {
-        map.addLayer({
-          id: LYR,
-          type: 'raster-particle',
-          source: SRC,
-          'source-layer': '10winds',
-          paint: {
-            'raster-particle-speed-factor': 0.35,
-            'raster-particle-fade-opacity-factor': 0.85,
-            'raster-particle-reset-rate-factor': 0.35,
-            'raster-particle-count': 512,
-            'raster-particle-max-speed': 40,
-            'raster-particle-color': [
-              'interpolate',
-              ['linear'],
-              ['raster-particle-speed'],
-              1.5,
-              'rgba(134,163,171,256)',
-              10,
-              'rgba(57,163,155,256)',
-              20,
-              'rgba(66,182,101,256)',
-              40,
-              'rgba(224,215,64,256)',
-              60,
-              'rgba(232,133,50,256)',
-              100,
-              'rgba(232,74,54,256)',
-            ],
-          },
-        } as unknown as mapboxgl.LayerSpecification);
-      }
-      return true;
-    } catch (e) {
-      console.warn('[MapService] Capa de viento no disponible', e);
-      return false;
-    }
+    if (map.getLayer(LYR)) map.removeLayer(LYR);
+    if (map.getSource(SRC)) map.removeSource(SRC);
   }
 }

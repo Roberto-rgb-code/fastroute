@@ -1,3 +1,4 @@
+import { DecimalPipe } from '@angular/common';
 import {
   AfterViewInit,
   Component,
@@ -11,6 +12,8 @@ import {
   signal,
   untracked,
 } from '@angular/core';
+import { firstValueFrom } from 'rxjs';
+import { ApiService } from '../core/api.service';
 import { mapboxgl, MAPBOX_GL_FALLBACK_STYLE, MapService } from '../core/map.service';
 import { IconComponent } from './icon.component';
 
@@ -30,7 +33,7 @@ const DEFAULT_CENTER: [number, number] = [-103.3496, 20.6597];
 @Component({
   selector: 'app-route-map',
   standalone: true,
-  imports: [IconComponent],
+  imports: [IconComponent, DecimalPipe],
   template: `
     <div class="relative h-full min-h-[280px] w-full overflow-hidden">
       <div class="absolute left-3 top-3 z-10 flex flex-wrap gap-1.5">
@@ -77,12 +80,23 @@ const DEFAULT_CENTER: [number, number] = [-103.3496, 20.6597];
             [class.text-white]="windOn()"
             [class.text-ink-600]="!windOn()"
             (click)="toggleWind()"
-            title="Viento (GFS)"
+            title="Viento en el centro del mapa (Open-Meteo)"
           >
             <app-icon name="wind" [size]="13" class="text-current" /> Viento
           </button>
         </div>
       </div>
+      @if (windOn() && windInfo(); as w) {
+        <div
+          class="wind-flow pointer-events-none absolute inset-0 z-[1]"
+          [style.--wind-deg]="windFlowDeg(w.windDir) + 'deg'"
+        ></div>
+        <div class="absolute bottom-14 left-3 z-10 flex items-center gap-2 rounded-xl border border-sky-200 bg-sky-50/95 px-3 py-2 text-xs font-semibold text-sky-900 shadow-sm backdrop-blur">
+          <app-icon name="wind" [size]="16" />
+          <span>{{ w.windKmh | number: '1.0-0' }} km/h · {{ windDirLabel(w.windDir) }}</span>
+          <span class="font-normal text-sky-700/80">Open-Meteo</span>
+        </div>
+      }
       @if (loadError()) {
         <div class="absolute inset-x-3 bottom-3 z-10 rounded-lg bg-ink-900/85 px-3 py-2 text-xs text-white">
           {{ loadError() }}
@@ -91,11 +105,35 @@ const DEFAULT_CENTER: [number, number] = [-103.3496, 20.6597];
       <div #host class="absolute inset-0 h-full w-full"></div>
     </div>
   `,
-  styles: [':host{display:block;height:100%;width:100%;min-height:280px}'],
+  styles: [
+    ':host{display:block;height:100%;width:100%;min-height:280px}',
+    `
+      .wind-flow {
+        opacity: 0.35;
+        background: repeating-linear-gradient(
+          var(--wind-deg, 45deg),
+          transparent,
+          transparent 12px,
+          rgba(14, 165, 233, 0.25) 12px,
+          rgba(14, 165, 233, 0.25) 14px
+        );
+        animation: fr-wind-drift 4s linear infinite;
+      }
+      @keyframes fr-wind-drift {
+        from {
+          background-position: 0 0;
+        }
+        to {
+          background-position: 80px 80px;
+        }
+      }
+    `,
+  ],
 })
 export class RouteMapComponent implements AfterViewInit, OnDestroy {
   points = input<MapPoint[]>([]);
   private maps = inject(MapService);
+  private api = inject(ApiService);
   private zone = inject(NgZone);
 
   @ViewChild('host', { static: true }) host!: ElementRef<HTMLDivElement>;
@@ -105,6 +143,7 @@ export class RouteMapComponent implements AfterViewInit, OnDestroy {
   readonly loadError = signal<string | null>(null);
   readonly trafficOn = signal(false);
   readonly windOn = signal(false);
+  readonly windInfo = signal<{ windKmh: number; windDir: number | null } | null>(null);
 
   readonly modes: { id: MapMode; label: string }[] = [
     { id: '2d', label: 'Mapa' },
@@ -120,6 +159,8 @@ export class RouteMapComponent implements AfterViewInit, OnDestroy {
   private resizeObs?: ResizeObserver;
   private booted = false;
   private drawTimer?: ReturnType<typeof setTimeout>;
+  private windMoveHandler?: () => void;
+  private windMoveTimer?: ReturnType<typeof setTimeout>;
 
   constructor() {
     effect(() => {
@@ -210,24 +251,71 @@ export class RouteMapComponent implements AfterViewInit, OnDestroy {
   toggleWind() {
     if (!this.map) return;
     const next = !this.windOn();
-    if (next) {
-      const ok = this.maps.setWind(this.map, true);
-      if (!ok) {
-        this.loadError.set('Viento no disponible en este estilo/token Mapbox. Revisa permisos GFS o prueba otro zoom.');
-        return;
-      }
-    } else {
-      this.maps.setWind(this.map, false);
+    if (!next) {
+      this.windOn.set(false);
+      this.windInfo.set(null);
+      this.detachWindMove();
+      this.maps.clearWindGfs(this.map);
+      return;
     }
-    this.windOn.set(next);
-    if (next) this.loadError.set(null);
+    this.windOn.set(true);
+    this.maps.clearWindGfs(this.map);
+    void this.refreshWind();
+    this.attachWindMove();
+  }
+
+  private attachWindMove() {
+    if (!this.map || this.windMoveHandler) return;
+    this.windMoveHandler = () => {
+      clearTimeout(this.windMoveTimer);
+      this.windMoveTimer = setTimeout(() => void this.refreshWind(), 800);
+    };
+    this.map.on('moveend', this.windMoveHandler);
+  }
+
+  private detachWindMove() {
+    if (this.map && this.windMoveHandler) {
+      this.map.off('moveend', this.windMoveHandler);
+    }
+    this.windMoveHandler = undefined;
+    clearTimeout(this.windMoveTimer);
+  }
+
+  private async refreshWind() {
+    if (!this.map || !this.windOn()) return;
+    const pts = this.points();
+    const lat = pts.length ? pts[0].lat : this.map.getCenter().lat;
+    const lng = pts.length ? pts[0].lng : this.map.getCenter().lng;
+    try {
+      const w = await firstValueFrom(this.api.weather(lat, lng));
+      this.windInfo.set({ windKmh: w.now.windKmh ?? 0, windDir: w.now.windDir });
+      this.loadError.set(null);
+    } catch {
+      this.loadError.set('No se pudo cargar el viento (Open-Meteo).');
+      this.windOn.set(false);
+      this.windInfo.set(null);
+      this.detachWindMove();
+    }
+  }
+
+  windFlowDeg(dir: number | null): number {
+    if (dir == null) return 45;
+    return (dir + 180) % 360;
+  }
+
+  windDirLabel(dir: number | null): string {
+    if (dir == null) return '—';
+    const labels = ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO'];
+    const i = Math.round(dir / 45) % 8;
+    return labels[i];
   }
 
   /** Re-pinta las capas overlay tras un cambio de estilo (setStyle las borra). */
   private reapplyOverlays() {
     if (!this.map) return;
+    this.maps.clearWindGfs(this.map);
     if (this.trafficOn()) this.maps.setTraffic(this.map, true);
-    if (this.windOn()) this.maps.setWind(this.map, true);
+    if (this.windOn()) void this.refreshWind();
   }
 
   private applyCamera(m: MapMode) {
@@ -292,6 +380,7 @@ export class RouteMapComponent implements AfterViewInit, OnDestroy {
 
   ngOnDestroy() {
     clearTimeout(this.drawTimer);
+    this.detachWindMove();
     this.resizeObs?.disconnect();
     this.markers.forEach((m) => m.remove());
     this.map?.remove();
