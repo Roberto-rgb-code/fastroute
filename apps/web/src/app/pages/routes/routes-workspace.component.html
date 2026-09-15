@@ -417,6 +417,12 @@
               <p class="plan-hint mb-4 text-sm text-ink-600">
                 Arma la ruta como en un planificador: elige paradas del catálogo y pulsa <strong>Optimizar ruta</strong> para ordenar por prioridad y tiempo de viaje.
               </p>
+              @if (isDemoPlanShuffle()) {
+                <p class="plan-demo-callout mb-4">
+                  <app-icon name="route" [size]="16" />
+                  Demo: las paradas están en un orden mezclado. Pulsa <strong>Optimizar ruta</strong> para ver cómo se reacomodan.
+                </p>
+              }
               <div class="plan-columns">
                 <section class="plan-col plan-col--pool">
                   <header class="plan-col-head">
@@ -458,23 +464,31 @@
                   <header class="plan-col-head">
                     <div>
                       <h4 class="text-sm font-bold text-ink-900">{{ r.name }}</h4>
-                      <span class="text-xs text-ink-500">{{ orderedEvents(r).length }} paradas en ruta</span>
+                      <span class="text-xs text-ink-500">{{ planEvents(r).length }} paradas en ruta</span>
                     </div>
                     <button
                       type="button"
                       class="plan-optimize-btn"
-                      [disabled]="plannerBusy() || orderedEvents(r).length < 2"
+                      [class.plan-optimize-btn--busy]="planOptimizing()"
+                      [disabled]="plannerBusy() || planEvents(r).length < 2"
                       (click)="optimizeRoute()"
                     >
-                      @if (plannerBusy()) { … } @else {
+                      @if (planOptimizing()) {
+                        <span class="plan-optimize-spinner" aria-hidden="true"></span> Calculando…
+                      } @else {
                         <app-icon name="route" [size]="15" /> Optimizar ruta
                       }
                     </button>
                   </header>
-                  <ul class="plan-list">
-                    @for (e of orderedEvents(r); track e.id) {
+                  <ul
+                    #planRouteList
+                    class="plan-list"
+                    [class.plan-list--optimizing]="planOptimizing()"
+                  >
+                    @for (e of planEvents(r); track e.id) {
                       <li
                         class="plan-card plan-card--route"
+                        [attr.data-plan-event-id]="e.id"
                         [class.plan-card--flash]="highlightEventId() === e.id"
                       >
                         <span class="plan-seq">{{ e.position }}</span>
@@ -490,7 +504,7 @@
                           <button
                             type="button"
                             class="plan-remove-btn"
-                            [disabled]="plannerBusy() || orderedEvents(r).length <= 2"
+                            [disabled]="plannerBusy() || planEvents(r).length <= 2"
                             (click)="removeFromRoute(e)"
                             title="Quitar de la ruta"
                           >

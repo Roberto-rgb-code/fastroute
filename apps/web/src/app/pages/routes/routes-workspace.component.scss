@@ -67,7 +67,42 @@ app-route-map {
   animation: plan-fade-in 0.35s ease;
 }
 
-.plan-columns {
+.plan-demo-callout {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 0.75rem;
+  border: 1px dashed #a5b4fc;
+  background: linear-gradient(90deg, #eef2ff, #f0fdf4);
+  padding: 0.65rem 0.85rem;
+  font-size: 0.8125rem;
+  color: #4338ca;
+}
+
+.plan-list--optimizing .plan-card--route {
+  opacity: 0.72;
+  filter: saturate(0.85);
+}
+
+.plan-optimize-btn--busy {
+  pointer-events: none;
+}
+
+.plan-optimize-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  border-radius: 999px;
+  animation: plan-spin 0.7s linear infinite;
+}
+
+@keyframes plan-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 1rem;
@@ -152,6 +187,7 @@ app-route-map {
 
 .plan-card--route {
   border-left: 3px solid #6366f1;
+  will-change: transform;
 }
 
 .plan-card--flash {

@@ -1,10 +1,10 @@
-import { Component, OnInit, computed, effect, inject, signal } from '@angular/core';
+import { Component, ElementRef, OnInit, ViewChild, computed, effect, inject, signal } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ApiService } from '../../core/api.service';
 import { AuthService } from '../../core/auth.service';
-import { DEMO_ROUTE_NAME, MAP_OVERVIEW_MAX_STOPS } from '../../core/demo.config';
+import { DEMO_PLANNER_AFTER_LABELS, DEMO_PLANNER_BEFORE_LABELS, DEMO_ROUTE_NAME, MAP_OVERVIEW_MAX_STOPS } from '../../core/demo.config';
 import {
   Driver,
   EnterpriseSettings,
@@ -32,6 +32,7 @@ import { IconComponent } from '../../shared/icon.component';
 import { MapPoint, RouteMapComponent } from '../../shared/route-map.component';
 import { RouteChatComponent } from '../../shared/route-chat.component';
 import { stopIdsInRoute } from './route-planner.util';
+import { capturePlanFlipRects, playPlanFlip } from './plan-flip.util';
 
 type Tab = 'info' | 'stops' | 'plan' | 'checklist' | 'expenses' | 'incidents' | 'chat';
 type Filter = 'ALL' | 'OPEN' | 'PENDING' | 'ENROUTE' | 'DONE' | 'APPROVALS';
@@ -50,6 +51,8 @@ export class RoutesWorkspaceComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   readonly auth = inject(AuthService);
+
+  @ViewChild('planRouteList') planRouteList?: ElementRef<HTMLElement>;
 
   // ── paneles desplegables ──
   listOpen = signal(true);
@@ -90,7 +93,12 @@ export class RoutesWorkspaceComponent implements OnInit {
   catalogStops = signal<Stop[]>([]);
   poolSearch = signal('');
   plannerBusy = signal(false);
+  planOptimizing = signal(false);
   highlightEventId = signal<string | null>(null);
+  /** Orden visual en planificador (demo mezclada hasta optimizar). */
+  planOrderOverride = signal<RouteEvent[] | null>(null);
+  private demoPlanPreparedForRouteId: string | null = null;
+  private demoPlanShuffleDone = false;
 
   readonly ROUTE_LABEL = ROUTE_LABEL;
   readonly ROUTE_BADGE = ROUTE_BADGE;
@@ -105,7 +113,10 @@ export class RoutesWorkspaceComponent implements OnInit {
     const color = (status?: string) => (status === 'COMPLETED' ? '#059669' : status === 'ISSUE' ? '#dc2626' : '#4f46e5');
     const d = this.detail();
     if (d) {
-      return d.events
+      const ordered =
+        this.planOrderOverride() ??
+        [...d.events].sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+      return ordered
         .filter((e) => e.stop)
         .map((e, i) => ({
           lat: e.evLat ?? e.stop.lat,
@@ -193,6 +204,11 @@ export class RoutesWorkspaceComponent implements OnInit {
         JSON.stringify({ list: this.listOpen(), map: this.mapOpen(), mapExpanded: this.mapExpanded() }),
       ),
     );
+    effect(() => {
+      if (this.tab() !== 'plan') return;
+      const r = this.detail();
+      if (r) this.ensureDemoPlanShuffle(r);
+    });
   }
 
   ngOnInit() {
@@ -264,6 +280,9 @@ export class RoutesWorkspaceComponent implements OnInit {
       next: (r) => {
         this.detail.set(r);
         this.loadingDetail.set(false);
+        this.planOrderOverride.set(null);
+        this.demoPlanPreparedForRouteId = null;
+        this.demoPlanShuffleDone = false;
         this.loadCatalog();
       },
       error: () => {
@@ -433,6 +452,43 @@ export class RoutesWorkspaceComponent implements OnInit {
     return [...r.events].sort((a, b) => a.position - b.position);
   }
 
+  /** Lista del planificador (incluye orden demo mezclado). */
+  planEvents(r: RouteDetail): RouteEvent[] {
+    const override = this.planOrderOverride();
+    if (override?.length) return override;
+    return this.orderedEvents(r);
+  }
+
+  isDemoPlanShuffle(): boolean {
+    return !!this.planOrderOverride() && this.detail()?.name === DEMO_ROUTE_NAME;
+  }
+
+  private ensureDemoPlanShuffle(r: RouteDetail) {
+    if (r.name !== DEMO_ROUTE_NAME || this.demoPlanShuffleDone) return;
+    if (this.planOrderOverride()) return;
+    if (this.demoPlanPreparedForRouteId !== r.id) {
+      this.demoPlanPreparedForRouteId = r.id;
+    }
+    const built = this.eventsInLabelOrder(r, DEMO_PLANNER_BEFORE_LABELS);
+    if (built.length >= 2) {
+      this.planOrderOverride.set(built);
+    }
+  }
+
+  private eventsInLabelOrder(r: RouteDetail, labels: readonly string[]): RouteEvent[] {
+    const byLabel = new Map(r.events.map((e) => [e.stop.label, e]));
+    const picked = labels.map((label) => byLabel.get(label)).filter((e): e is RouteEvent => !!e);
+    if (picked.length !== r.events.length) return [];
+    return picked.map((e, i) => ({ ...e, position: i + 1 }));
+  }
+
+  private runPlanFlipAfterReorder(before: Map<string, DOMRect>) {
+    const el = this.planRouteList?.nativeElement;
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => playPlanFlip(el, before));
+    });
+  }
+
   canPlan(r: RouteDetail | null): boolean {
     return !!r && !this.isTerminal(r) && this.auth.canDispatch();
   }
@@ -495,15 +551,55 @@ export class RoutesWorkspaceComponent implements OnInit {
   optimizeRoute() {
     const r = this.detail();
     if (!r || !this.canPlan(r)) return;
+    const listEl = this.planRouteList?.nativeElement;
+    const beforeRects = capturePlanFlipRects(listEl);
+    const demoShuffle = this.isDemoPlanShuffle();
+
     this.plannerBusy.set(true);
+    this.planOptimizing.set(true);
+
+    const finishBusy = () => {
+      this.plannerBusy.set(false);
+      this.planOptimizing.set(false);
+    };
+
+    const applyOptimized = (res: RouteDetail, msg: string) => {
+      this.planOrderOverride.set(null);
+      this.apply(res, msg);
+      finishBusy();
+      this.runPlanFlipAfterReorder(beforeRects);
+      this.tab.set('plan');
+    };
+
+    if (demoShuffle) {
+      window.setTimeout(() => {
+        const reordered = this.eventsInLabelOrder(r, DEMO_PLANNER_AFTER_LABELS);
+        if (reordered.length >= 2) {
+          this.planOrderOverride.set(reordered);
+          this.demoPlanShuffleDone = true;
+          this.runPlanFlipAfterReorder(beforeRects);
+          this.notify('ok', 'Ruta optimizada (prioridad + recorrido)');
+        }
+        this.api.optimizeRoute(r.id).subscribe({
+          next: (res) => {
+            this.planOrderOverride.set(null);
+            this.detail.set(res);
+            this.loadList();
+            finishBusy();
+          },
+          error: (e) => {
+            finishBusy();
+            this.fail(e);
+          },
+        });
+      }, 520);
+      return;
+    }
+
     this.api.optimizeRoute(r.id).subscribe({
-      next: (res) => {
-        this.apply(res, 'Ruta optimizada (prioridad + tiempo)');
-        this.plannerBusy.set(false);
-        this.tab.set('plan');
-      },
+      next: (res) => applyOptimized(res, 'Ruta optimizada (prioridad + tiempo)'),
       error: (e) => {
-        this.plannerBusy.set(false);
+        finishBusy();
         this.fail(e);
       },
     });

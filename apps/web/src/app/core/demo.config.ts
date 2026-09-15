@@ -10,3 +10,23 @@ export const DEMO_WEATHER = {
 
 /** Máximo de paradas en mapa «overview» (sin ruta seleccionada) para no congelar el UI. */
 export const MAP_OVERVIEW_MAX_STOPS = 12;
+
+/**
+ * Demo planificador: orden mezclado al abrir la pestaña Plan (Ruta 1).
+ * Al pulsar Optimizar, las tarjetas se animan hacia AFTER (urgente primero + recorrido lógico).
+ */
+export const DEMO_PLANNER_BEFORE_LABELS = [
+  'Vitacura 500',
+  'Santiago Centro',
+  'Ñuñoa 300',
+  'Providencia 100',
+  'Las Condes 200',
+] as const;
+
+export const DEMO_PLANNER_AFTER_LABELS = [
+  'Las Condes 200',
+  'Providencia 100',
+  'Vitacura 500',
+  'Ñuñoa 300',
+  'Santiago Centro',
+] as const;
