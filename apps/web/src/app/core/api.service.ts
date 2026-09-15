@@ -162,6 +162,15 @@ export class ApiService {
   reorderRoute(id: string, eventIds: string[]) {
     return this.http.patch<RouteDetail>(`${BASE}/routes/${id}/reorder`, { eventIds });
   }
+  addStopToRoute(routeId: string, stopId: string) {
+    return this.http.post<RouteDetail>(`${BASE}/routes/${routeId}/stops`, { stopId });
+  }
+  removeRouteStop(routeId: string, eventId: string) {
+    return this.http.delete<RouteDetail>(`${BASE}/routes/${routeId}/events/${eventId}`);
+  }
+  optimizeRoute(id: string) {
+    return this.http.post<RouteDetail>(`${BASE}/routes/${id}/optimize`, {});
+  }
   notifyDriver(id: string, message?: string) {
     return this.http.post<{ ok: boolean; link: string }>(`${BASE}/routes/${id}/notify-driver`, { message });
   }

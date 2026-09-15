@@ -13,6 +13,7 @@ import {
   RouteEvent,
   RouteStatus,
   RouteSummary,
+  Stop,
   TERMINAL_ROUTE_STATUSES,
   TRACKABLE_ROUTE_STATUSES,
   Vehicle,
@@ -30,8 +31,9 @@ import {
 import { IconComponent } from '../../shared/icon.component';
 import { MapPoint, RouteMapComponent } from '../../shared/route-map.component';
 import { RouteChatComponent } from '../../shared/route-chat.component';
+import { stopIdsInRoute } from './route-planner.util';
 
-type Tab = 'info' | 'stops' | 'checklist' | 'expenses' | 'incidents' | 'chat';
+type Tab = 'info' | 'stops' | 'plan' | 'checklist' | 'expenses' | 'incidents' | 'chat';
 type Filter = 'ALL' | 'OPEN' | 'PENDING' | 'ENROUTE' | 'DONE' | 'APPROVALS';
 
 const PANELS_KEY = 'fastroute_routes_panels';
@@ -84,6 +86,12 @@ export class RoutesWorkspaceComponent implements OnInit {
   /** Paradas desplegadas en la línea de tiempo. */
   expanded = signal<Record<string, boolean>>({});
 
+  /** Planificador Curri-style */
+  catalogStops = signal<Stop[]>([]);
+  poolSearch = signal('');
+  plannerBusy = signal(false);
+  highlightEventId = signal<string | null>(null);
+
   readonly ROUTE_LABEL = ROUTE_LABEL;
   readonly ROUTE_BADGE = ROUTE_BADGE;
   readonly EVENT_LABEL = EVENT_LABEL;
@@ -134,6 +142,7 @@ export class RoutesWorkspaceComponent implements OnInit {
   ];
 
   tabs: { key: Tab; label: string; icon: string }[] = [
+    { key: 'plan', label: 'Planificador', icon: 'navigation' },
     { key: 'info', label: 'Info', icon: 'info' },
     { key: 'stops', label: 'Paradas', icon: 'pin' },
     { key: 'checklist', label: 'Checklist', icon: 'checklist' },
@@ -255,6 +264,7 @@ export class RoutesWorkspaceComponent implements OnInit {
       next: (r) => {
         this.detail.set(r);
         this.loadingDetail.set(false);
+        this.loadCatalog();
       },
       error: () => {
         this.loadingDetail.set(false);
@@ -421,6 +431,82 @@ export class RoutesWorkspaceComponent implements OnInit {
   /** Paradas ordenadas por posición (origen → destino). */
   orderedEvents(r: RouteDetail): RouteEvent[] {
     return [...r.events].sort((a, b) => a.position - b.position);
+  }
+
+  canPlan(r: RouteDetail | null): boolean {
+    return !!r && !this.isTerminal(r) && this.auth.canDispatch();
+  }
+
+  poolStops(r: RouteDetail): Stop[] {
+    const inRoute = stopIdsInRoute(r.events);
+    const q = this.poolSearch().toLowerCase().trim();
+    return this.catalogStops().filter((s) => {
+      if (inRoute.has(s.id)) return false;
+      if (!q) return true;
+      return `${s.label} ${s.address}`.toLowerCase().includes(q);
+    });
+  }
+
+  loadCatalog() {
+    this.api.stops().subscribe({
+      next: (list) => this.catalogStops.set(list.filter((s) => !s.isArchived)),
+      error: () => this.catalogStops.set([]),
+    });
+  }
+
+  addStopFromPool(stop: Stop) {
+    const r = this.detail();
+    if (!r || !this.canPlan(r)) return;
+    this.plannerBusy.set(true);
+    this.api.addStopToRoute(r.id, stop.id).subscribe({
+      next: (res) => {
+        this.apply(res, `${stop.label} agregada a la ruta`);
+        const added = res.events.find((e) => e.stop.id === stop.id);
+        if (added) {
+          this.highlightEventId.set(added.id);
+          setTimeout(() => this.highlightEventId.set(null), 1200);
+        }
+        this.plannerBusy.set(false);
+      },
+      error: (e) => {
+        this.plannerBusy.set(false);
+        this.fail(e);
+      },
+    });
+  }
+
+  removeFromRoute(ev: RouteEvent) {
+    const r = this.detail();
+    if (!r || !this.canPlan(r)) return;
+    if (!confirm(`¿Quitar "${ev.stop.label}" de esta ruta?`)) return;
+    this.plannerBusy.set(true);
+    this.api.removeRouteStop(r.id, ev.id).subscribe({
+      next: (res) => {
+        this.apply(res, 'Parada quitada de la ruta');
+        this.plannerBusy.set(false);
+      },
+      error: (e) => {
+        this.plannerBusy.set(false);
+        this.fail(e);
+      },
+    });
+  }
+
+  optimizeRoute() {
+    const r = this.detail();
+    if (!r || !this.canPlan(r)) return;
+    this.plannerBusy.set(true);
+    this.api.optimizeRoute(r.id).subscribe({
+      next: (res) => {
+        this.apply(res, 'Ruta optimizada (prioridad + tiempo)');
+        this.plannerBusy.set(false);
+        this.tab.set('plan');
+      },
+      error: (e) => {
+        this.plannerBusy.set(false);
+        this.fail(e);
+      },
+    });
   }
 
   originOf(r: RouteSummary): string {

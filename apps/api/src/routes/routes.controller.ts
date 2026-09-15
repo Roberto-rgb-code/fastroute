@@ -29,6 +29,7 @@ import {
   StartRouteDto,
   SubmitEvidenceDto,
 } from './dto/route-ops.dto';
+import { AddRouteStopDto } from './dto/add-route-stop.dto';
 import { RoutesService } from './routes.service';
 
 const DISPATCH = [UserRole.SUPER, UserRole.ADMIN, UserRole.MANAGER, UserRole.LOGISTICS] as const;
@@ -200,6 +201,34 @@ export class RoutesController {
     @Query('enterpriseId') eid?: string,
   ) {
     return this.service.reorderStops(resolveEnterpriseId(user, eid), id, eventIds, user);
+  }
+
+  @Post(':id/stops')
+  @Roles(...DISPATCH)
+  addStop(
+    @CurrentUser() user: User,
+    @Param('id') id: string,
+    @Body() dto: AddRouteStopDto,
+    @Query('enterpriseId') eid?: string,
+  ) {
+    return this.service.addStopToRoute(resolveEnterpriseId(user, eid), id, dto.stopId);
+  }
+
+  @Delete(':id/events/:eventId')
+  @Roles(...DISPATCH)
+  removeStop(
+    @CurrentUser() user: User,
+    @Param('id') id: string,
+    @Param('eventId') eventId: string,
+    @Query('enterpriseId') eid?: string,
+  ) {
+    return this.service.removeEventFromRoute(resolveEnterpriseId(user, eid), id, eventId);
+  }
+
+  @Post(':id/optimize')
+  @Roles(...DISPATCH)
+  optimize(@CurrentUser() user: User, @Param('id') id: string, @Query('enterpriseId') eid?: string) {
+    return this.service.optimizeRoute(resolveEnterpriseId(user, eid), id);
   }
 
   @Patch(':id/events/:eventId')

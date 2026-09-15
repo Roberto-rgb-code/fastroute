@@ -412,6 +412,101 @@
             }
           </nav>
 
+          @if (tab() === 'plan' && canPlan(r)) {
+            <div class="plan-board">
+              <p class="plan-hint mb-4 text-sm text-ink-600">
+                Arma la ruta como en un planificador: elige paradas del catálogo y pulsa <strong>Optimizar ruta</strong> para ordenar por prioridad y tiempo de viaje.
+              </p>
+              <div class="plan-columns">
+                <section class="plan-col plan-col--pool">
+                  <header class="plan-col-head">
+                    <h4 class="text-sm font-bold text-ink-900">Pedidos / paradas</h4>
+                    <span class="text-xs text-ink-500">{{ poolStops(r).length }} disponibles</span>
+                  </header>
+                  <label class="plan-search">
+                    <app-icon name="search" [size]="16" />
+                    <input
+                      placeholder="Buscar dirección o nombre…"
+                      [ngModel]="poolSearch()"
+                      (ngModelChange)="poolSearch.set($event)"
+                    />
+                  </label>
+                  <ul class="plan-list">
+                    @for (s of poolStops(r); track s.id) {
+                      <li class="plan-card plan-card--pool">
+                        <div class="min-w-0 flex-1">
+                          <strong class="block truncate text-sm text-ink-900">{{ s.label }}</strong>
+                          <span class="block truncate text-xs text-ink-500">{{ s.address }}</span>
+                        </div>
+                        <button
+                          type="button"
+                          class="plan-add-btn"
+                          [disabled]="plannerBusy()"
+                          (click)="addStopFromPool(s)"
+                          title="Agregar a la ruta"
+                        >
+                          <app-icon name="plus" [size]="14" /> Add stop
+                        </button>
+                      </li>
+                    } @empty {
+                      <li class="px-2 py-6 text-center text-xs text-ink-400">No hay más paradas para agregar.</li>
+                    }
+                  </ul>
+                </section>
+
+                <section class="plan-col plan-col--route">
+                  <header class="plan-col-head">
+                    <div>
+                      <h4 class="text-sm font-bold text-ink-900">{{ r.name }}</h4>
+                      <span class="text-xs text-ink-500">{{ orderedEvents(r).length }} paradas en ruta</span>
+                    </div>
+                    <button
+                      type="button"
+                      class="plan-optimize-btn"
+                      [disabled]="plannerBusy() || orderedEvents(r).length < 2"
+                      (click)="optimizeRoute()"
+                    >
+                      @if (plannerBusy()) { … } @else {
+                        <app-icon name="route" [size]="15" /> Optimizar ruta
+                      }
+                    </button>
+                  </header>
+                  <ul class="plan-list">
+                    @for (e of orderedEvents(r); track e.id) {
+                      <li
+                        class="plan-card plan-card--route"
+                        [class.plan-card--flash]="highlightEventId() === e.id"
+                      >
+                        <span class="plan-seq">{{ e.position }}</span>
+                        <div class="min-w-0 flex-1">
+                          <strong class="block truncate text-sm text-ink-900">{{ e.stop.label }}</strong>
+                          <span class="block truncate text-xs text-ink-500">{{ e.stop.address }}</span>
+                          <span class="mt-1 block text-[11px] font-semibold text-ink-400">
+                            {{ e.eta ? time(e.eta) : (e.stop.schedule || 'Sin ETA') }}
+                            @if (e.priority === 'URGENT') { · <span class="text-danger">Urgente</span> }
+                          </span>
+                        </div>
+                        @if (e.status !== 'COMPLETED') {
+                          <button
+                            type="button"
+                            class="plan-remove-btn"
+                            [disabled]="plannerBusy() || orderedEvents(r).length <= 2"
+                            (click)="removeFromRoute(e)"
+                            title="Quitar de la ruta"
+                          >
+                            <app-icon name="x" [size]="14" />
+                          </button>
+                        }
+                      </li>
+                    }
+                  </ul>
+                </section>
+              </div>
+            </div>
+          } @else if (tab() === 'plan' && !canPlan(r)) {
+            <p class="text-sm text-ink-500">El planificador no está disponible para rutas cerradas o sin permisos de despacho.</p>
+          }
+
           <!-- ── Tab: Paradas (línea de tiempo) ── -->
           @if (tab() === 'stops') {
             <div class="relative pl-6">

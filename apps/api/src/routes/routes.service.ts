@@ -424,12 +424,103 @@ export class RoutesService {
     if (eventIdsInOrder.some((eid) => !ids.has(eid))) {
       throw new BadRequestException('Evento inválido para esta ruta');
     }
+    if (eventIdsInOrder.length !== route.events.length) {
+      throw new BadRequestException('Debes incluir todas las paradas de la ruta');
+    }
     await this.prisma.$transaction(
       eventIdsInOrder.map((eid, idx) =>
         this.prisma.event.update({ where: { id: eid }, data: { position: idx + 1 } }),
       ),
     );
     return this.get(enterpriseId, id);
+  }
+
+  /** Añade una parada del catálogo al final de la ruta (planificador admin). */
+  async addStopToRoute(enterpriseId: string, routeId: string, stopId: string) {
+    const route = await this.get(enterpriseId, routeId);
+    if (isTerminalRoute(route.status)) throw new BadRequestException('La ruta ya está cerrada');
+    if (route.events.some((e) => e.stopId === stopId)) {
+      throw new BadRequestException('Esa parada ya está en la ruta');
+    }
+    const stop = await this.prisma.stop.findFirst({
+      where: { id: stopId, enterpriseId, isArchived: false },
+    });
+    if (!stop) throw new NotFoundException('Parada no encontrada');
+    const maxPos = route.events.reduce((m, e) => Math.max(m, e.position), 0);
+    await this.prisma.event.create({
+      data: { routeId, stopId, position: maxPos + 1 },
+    });
+    return this.get(enterpriseId, routeId);
+  }
+
+  /** Quita una parada pendiente de la ruta (mínimo 2 paradas). */
+  async removeEventFromRoute(enterpriseId: string, routeId: string, eventId: string) {
+    const route = await this.get(enterpriseId, routeId);
+    if (isTerminalRoute(route.status)) throw new BadRequestException('La ruta ya está cerrada');
+    if (route.events.length <= 2) {
+      throw new BadRequestException('La ruta debe conservar al menos dos paradas');
+    }
+    const event = route.events.find((e) => e.id === eventId);
+    if (!event) throw new NotFoundException('Parada no encontrada');
+    if (event.status === EventStatus.COMPLETED) {
+      throw new BadRequestException('No se quita una parada ya completada');
+    }
+    await this.prisma.event.delete({ where: { id: eventId } });
+    const remaining = route.events
+      .filter((e) => e.id !== eventId)
+      .sort((a, b) => a.position - b.position);
+    await this.prisma.$transaction(
+      remaining.map((e, idx) =>
+        this.prisma.event.update({ where: { id: e.id }, data: { position: idx + 1 } }),
+      ),
+    );
+    return this.get(enterpriseId, routeId);
+  }
+
+  /**
+   * Optimiza orden: urgentes primero, resto por ETA y Mapbox Optimization (≤12 puntos).
+   */
+  async optimizeRoute(enterpriseId: string, routeId: string) {
+    const route = await this.get(enterpriseId, routeId);
+    if (isTerminalRoute(route.status)) throw new BadRequestException('La ruta ya está cerrada');
+    const sorted = [...route.events].sort((a, b) => a.position - b.position);
+    const urgent = sorted.filter((e) => e.priority === 'URGENT');
+    const rest = sorted.filter((e) => e.priority !== 'URGENT');
+    const orderedRest = await this.orderEventsForTravel(rest);
+    const ordered = [...urgent, ...orderedRest];
+    const eventIds = ordered.map((e) => e.id);
+    return this.reorderStops(enterpriseId, routeId, eventIds);
+  }
+
+  private async orderEventsForTravel(
+    events: { id: string; position: number; eta: Date | null; stop: { lat: number; lng: number } }[],
+  ) {
+    if (events.length <= 1) return events;
+    const byEta = [...events].sort((a, b) => {
+      const ta = a.eta?.getTime() ?? Number.MAX_SAFE_INTEGER;
+      const tb = b.eta?.getTime() ?? Number.MAX_SAFE_INTEGER;
+      return ta - tb || a.position - b.position;
+    });
+    if (events.length > 12) return byEta;
+    const token = process.env.MAPBOX_ACCESS_TOKEN?.trim();
+    if (!token) return byEta;
+    try {
+      const coords = byEta.map((e) => `${e.stop.lng},${e.stop.lat}`).join(';');
+      const url =
+        `https://api.mapbox.com/optimized-trips/v1/mapbox/driving/${coords}` +
+        `?overview=false&source=first&destination=last&roundtrip=false&access_token=${token}`;
+      const res = await fetch(url);
+      if (!res.ok) return byEta;
+      const json = (await res.json()) as {
+        waypoints?: { waypoint_index: number; trips_index: number }[];
+      };
+      const wps = json.waypoints;
+      if (!wps?.length) return byEta;
+      const order = [...wps].sort((a, b) => a.waypoint_index - b.waypoint_index);
+      return order.map((wp) => byEta[wp.waypoint_index]).filter(Boolean);
+    } catch {
+      return byEta;
+    }
   }
 
   /** Cambios de estado operativo de la parada (route/issue/service/prioridad) sin evidencia. */
