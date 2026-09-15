@@ -16,6 +16,7 @@ import { firstValueFrom } from 'rxjs';
 import { ApiService } from '../core/api.service';
 import { mapboxgl, MAPBOX_GL_FALLBACK_STYLE, MapService } from '../core/map.service';
 import { IconComponent } from './icon.component';
+import { WindFieldCell, WindParticleOverlay } from './wind-particle-overlay';
 
 export interface MapPoint {
   lat: number;
@@ -80,21 +81,19 @@ const DEFAULT_CENTER: [number, number] = [-103.3496, 20.6597];
             [class.text-white]="windOn()"
             [class.text-ink-600]="!windOn()"
             (click)="toggleWind()"
-            title="Viento en el centro del mapa (Open-Meteo)"
+            title="Animación de viento (Open-Meteo; la demo Mapbox GFS requiere tileset de pago)"
           >
             <app-icon name="wind" [size]="13" class="text-current" /> Viento
           </button>
         </div>
       </div>
       @if (windOn() && windInfo(); as w) {
-        <div
-          class="wind-flow pointer-events-none absolute inset-0 z-[1]"
-          [style.--wind-deg]="windFlowDeg(w.windDir) + 'deg'"
-        ></div>
-        <div class="absolute bottom-14 left-3 z-10 flex items-center gap-2 rounded-xl border border-sky-200 bg-sky-50/95 px-3 py-2 text-xs font-semibold text-sky-900 shadow-sm backdrop-blur">
-          <app-icon name="wind" [size]="16" />
-          <span>{{ w.windKmh | number: '1.0-0' }} km/h · {{ windDirLabel(w.windDir) }}</span>
-          <span class="font-normal text-sky-700/80">Open-Meteo</span>
+        <div class="absolute bottom-14 left-3 z-10 flex max-w-[min(100%,18rem)] flex-col gap-1 rounded-xl border border-sky-200/80 bg-slate-900/75 px-3 py-2 text-xs font-semibold text-white shadow-lg backdrop-blur">
+          <div class="flex items-center gap-2">
+            <app-icon name="wind" [size]="16" />
+            <span>{{ w.windKmh | number: '1.0-0' }} km/h · {{ windDirLabel(w.windDir) }}</span>
+          </div>
+          <span class="text-[10px] font-normal text-sky-100/85">Partículas Open-Meteo · GFS Mapbox no disponible en este token</span>
         </div>
       }
       @if (loadError()) {
@@ -105,30 +104,7 @@ const DEFAULT_CENTER: [number, number] = [-103.3496, 20.6597];
       <div #host class="absolute inset-0 h-full w-full"></div>
     </div>
   `,
-  styles: [
-    ':host{display:block;height:100%;width:100%;min-height:280px}',
-    `
-      .wind-flow {
-        opacity: 0.35;
-        background: repeating-linear-gradient(
-          var(--wind-deg, 45deg),
-          transparent,
-          transparent 12px,
-          rgba(14, 165, 233, 0.25) 12px,
-          rgba(14, 165, 233, 0.25) 14px
-        );
-        animation: fr-wind-drift 4s linear infinite;
-      }
-      @keyframes fr-wind-drift {
-        from {
-          background-position: 0 0;
-        }
-        to {
-          background-position: 80px 80px;
-        }
-      }
-    `,
-  ],
+  styles: [':host{display:block;height:100%;width:100%;min-height:280px}'],
 })
 export class RouteMapComponent implements AfterViewInit, OnDestroy {
   points = input<MapPoint[]>([]);
@@ -161,6 +137,8 @@ export class RouteMapComponent implements AfterViewInit, OnDestroy {
   private drawTimer?: ReturnType<typeof setTimeout>;
   private windMoveHandler?: () => void;
   private windMoveTimer?: ReturnType<typeof setTimeout>;
+  private windOverlay?: WindParticleOverlay;
+  private windResizeHandler?: () => void;
 
   constructor() {
     effect(() => {
@@ -184,7 +162,10 @@ export class RouteMapComponent implements AfterViewInit, OnDestroy {
     }
     this.baseStyle = this.maps.mapStyleUrl();
 
-    this.resizeObs = new ResizeObserver(() => this.map?.resize());
+    this.resizeObs = new ResizeObserver(() => {
+      this.map?.resize();
+      this.windOverlay?.resize();
+    });
     this.resizeObs.observe(this.host.nativeElement);
     if (this.host.nativeElement.parentElement) {
       this.resizeObs.observe(this.host.nativeElement.parentElement);
@@ -255,13 +236,35 @@ export class RouteMapComponent implements AfterViewInit, OnDestroy {
       this.windOn.set(false);
       this.windInfo.set(null);
       this.detachWindMove();
+      this.stopWindOverlay();
       this.maps.clearWindGfs(this.map);
       return;
     }
     this.windOn.set(true);
     this.maps.clearWindGfs(this.map);
+    this.startWindOverlay();
     void this.refreshWind();
     this.attachWindMove();
+  }
+
+  private startWindOverlay() {
+    const shell = this.host.nativeElement.parentElement;
+    if (!shell || this.windOverlay) return;
+    this.windOverlay = new WindParticleOverlay(shell, 850);
+    this.windOverlay.start();
+    if (this.map && !this.windResizeHandler) {
+      this.windResizeHandler = () => this.windOverlay?.resize();
+      this.map.on('resize', this.windResizeHandler);
+    }
+  }
+
+  private stopWindOverlay() {
+    if (this.map && this.windResizeHandler) {
+      this.map.off('resize', this.windResizeHandler);
+      this.windResizeHandler = undefined;
+    }
+    this.windOverlay?.destroy();
+    this.windOverlay = undefined;
   }
 
   private attachWindMove() {
@@ -283,24 +286,74 @@ export class RouteMapComponent implements AfterViewInit, OnDestroy {
 
   private async refreshWind() {
     if (!this.map || !this.windOn()) return;
-    const pts = this.points();
-    const lat = pts.length ? pts[0].lat : this.map.getCenter().lat;
-    const lng = pts.length ? pts[0].lng : this.map.getCenter().lng;
     try {
-      const w = await firstValueFrom(this.api.weather(lat, lng));
-      this.windInfo.set({ windKmh: w.now.windKmh ?? 0, windDir: w.now.windDir });
+      const field = await this.fetchWindField();
+      this.windInfo.set({ windKmh: field.centerKmh, windDir: field.centerDir });
+      this.windOverlay?.setField(field.cols, field.rows, field.grid);
       this.loadError.set(null);
     } catch {
       this.loadError.set('No se pudo cargar el viento (Open-Meteo).');
       this.windOn.set(false);
       this.windInfo.set(null);
       this.detachWindMove();
+      this.stopWindOverlay();
     }
   }
 
-  windFlowDeg(dir: number | null): number {
-    if (dir == null) return 45;
-    return (dir + 180) % 360;
+  /** Muestra 3×3 muestras Open-Meteo sobre el viewport para variar la animación. */
+  private async fetchWindField(): Promise<{
+    cols: number;
+    rows: number;
+    grid: WindFieldCell[];
+    centerKmh: number;
+    centerDir: number | null;
+  }> {
+    const map = this.map!;
+    const cols = 3;
+    const rows = 3;
+    const b = map.getBounds();
+    if (!b) {
+      const c = map.getCenter();
+      const w = await firstValueFrom(this.api.weather(c.lat, c.lng));
+      const speedKmh = w.now.windKmh ?? 0;
+      const { u, v } = WindParticleOverlay.vectorFromMeteo(speedKmh, w.now.windDir);
+      const cell = { u, v, speedKmh };
+      return { cols: 1, rows: 1, grid: [cell], centerKmh: speedKmh, centerDir: w.now.windDir };
+    }
+    const west = b.getWest();
+    const east = b.getEast();
+    const south = b.getSouth();
+    const north = b.getNorth();
+    const tasks: Promise<{ r: number; c: number; cell: WindFieldCell; windDir: number | null }>[] = [];
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const lat = north - (r / (rows - 1)) * (north - south);
+        const lng = west + (c / (cols - 1)) * (east - west);
+        tasks.push(
+          firstValueFrom(this.api.weather(lat, lng)).then((w) => {
+            const speedKmh = w.now.windKmh ?? 0;
+            const { u, v } = WindParticleOverlay.vectorFromMeteo(speedKmh, w.now.windDir);
+            return { r, c, cell: { u, v, speedKmh }, windDir: w.now.windDir };
+          }),
+        );
+      }
+    }
+    const samples = await Promise.all(tasks);
+    const grid: WindFieldCell[] = Array.from({ length: rows * cols }, () => ({
+      u: 0.1,
+      v: 0,
+      speedKmh: 0,
+    }));
+    let centerKmh = 0;
+    let centerDir: number | null = null;
+    for (const s of samples) {
+      grid[s.r * cols + s.c] = s.cell;
+      if (s.r === 1 && s.c === 1) {
+        centerKmh = s.cell.speedKmh;
+        centerDir = s.windDir;
+      }
+    }
+    return { cols, rows, grid, centerKmh, centerDir };
   }
 
   windDirLabel(dir: number | null): string {
@@ -381,6 +434,7 @@ export class RouteMapComponent implements AfterViewInit, OnDestroy {
   ngOnDestroy() {
     clearTimeout(this.drawTimer);
     this.detachWindMove();
+    this.stopWindOverlay();
     this.resizeObs?.disconnect();
     this.markers.forEach((m) => m.remove());
     this.map?.remove();
