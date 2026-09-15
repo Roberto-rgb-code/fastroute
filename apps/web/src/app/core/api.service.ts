@@ -22,6 +22,7 @@ import {
   StopsReport,
   UserRole,
   Vehicle,
+  WeatherResult,
 } from './models';
 
 const BASE = '/api/v1';
@@ -44,6 +45,9 @@ export class ApiService {
   }
   today() {
     return this.http.get<{ day: string; tz: string }>(`${BASE}/routes/today`);
+  }
+  weather(lat: number, lng: number) {
+    return this.http.get<WeatherResult>(`${BASE}/weather`, { params: params({ lat, lng }) });
   }
 
   // Super admin

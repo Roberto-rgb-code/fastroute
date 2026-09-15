@@ -41,19 +41,45 @@ const DEFAULT_CENTER: [number, number] = [-103.3496, 20.6597];
           </span>
         }
       </div>
-      <div class="absolute right-3 top-3 z-10 flex rounded-lg bg-white/95 p-0.5 shadow-sm">
-        @for (m of modes; track m.id) {
+      <div class="absolute right-3 top-3 z-10 flex flex-col items-end gap-1.5">
+        <div class="flex rounded-lg bg-white/95 p-0.5 shadow-sm">
+          @for (m of modes; track m.id) {
+            <button
+              type="button"
+              class="rounded-md px-2 py-1 text-[11px] font-semibold"
+              [class.bg-brand-600]="mode() === m.id"
+              [class.text-white]="mode() === m.id"
+              [class.text-ink-600]="mode() !== m.id"
+              (click)="setMode(m.id)"
+            >
+              {{ m.label }}
+            </button>
+          }
+        </div>
+        <div class="flex gap-1.5">
           <button
             type="button"
-            class="rounded-md px-2 py-1 text-[11px] font-semibold"
-            [class.bg-brand-600]="mode() === m.id"
-            [class.text-white]="mode() === m.id"
-            [class.text-ink-600]="mode() !== m.id"
-            (click)="setMode(m.id)"
+            class="inline-flex items-center gap-1 rounded-lg bg-white/95 px-2 py-1 text-[11px] font-semibold shadow-sm"
+            [class.bg-brand-600]="trafficOn()"
+            [class.text-white]="trafficOn()"
+            [class.text-ink-600]="!trafficOn()"
+            (click)="toggleTraffic()"
+            title="Tráfico en tiempo real"
           >
-            {{ m.label }}
+            <app-icon name="route" [size]="13" /> Tráfico
           </button>
-        }
+          <button
+            type="button"
+            class="inline-flex items-center gap-1 rounded-lg bg-white/95 px-2 py-1 text-[11px] font-semibold shadow-sm"
+            [class.bg-brand-600]="windOn()"
+            [class.text-white]="windOn()"
+            [class.text-ink-600]="!windOn()"
+            (click)="toggleWind()"
+            title="Viento (GFS)"
+          >
+            <app-icon name="wind" [size]="13" /> Viento
+          </button>
+        </div>
       </div>
       @if (loadError()) {
         <div class="absolute inset-x-3 bottom-3 z-10 rounded-lg bg-ink-900/85 px-3 py-2 text-xs text-white">
@@ -75,6 +101,8 @@ export class RouteMapComponent implements AfterViewInit, OnDestroy {
   readonly mode = signal<MapMode>('2d');
   readonly routeMeta = signal<string | null>(null);
   readonly loadError = signal<string | null>(null);
+  readonly trafficOn = signal(false);
+  readonly windOn = signal(false);
 
   readonly modes: { id: MapMode; label: string }[] = [
     { id: '2d', label: 'Mapa' },
@@ -149,6 +177,7 @@ export class RouteMapComponent implements AfterViewInit, OnDestroy {
       map.setStyle('mapbox://styles/mapbox/satellite-streets-v12');
       map.once('style.load', () => {
         map.resize();
+        this.reapplyOverlays();
         void this.draw(this.points());
       });
       return;
@@ -159,11 +188,31 @@ export class RouteMapComponent implements AfterViewInit, OnDestroy {
       map.once('style.load', () => {
         map.resize();
         this.applyCamera(m);
+        this.reapplyOverlays();
         void this.draw(this.points());
       });
       return;
     }
     this.applyCamera(m);
+  }
+
+  toggleTraffic() {
+    if (!this.map) return;
+    this.trafficOn.update((v) => !v);
+    this.maps.setTraffic(this.map, this.trafficOn());
+  }
+
+  toggleWind() {
+    if (!this.map) return;
+    this.windOn.update((v) => !v);
+    this.maps.setWind(this.map, this.windOn());
+  }
+
+  /** Re-pinta las capas overlay tras un cambio de estilo (setStyle las borra). */
+  private reapplyOverlays() {
+    if (!this.map) return;
+    if (this.trafficOn()) this.maps.setTraffic(this.map, true);
+    if (this.windOn()) this.maps.setWind(this.map, true);
   }
 
   private applyCamera(m: MapMode) {

@@ -195,4 +195,85 @@ export class MapService {
     if (map.getLayer(`${sourceId}-halo`)) map.removeLayer(`${sourceId}-halo`);
     if (map.getSource(sourceId)) map.removeSource(sourceId);
   }
+
+  // ── Tráfico en tiempo real (Mapbox Traffic v1) ────────────────────────────
+  /** @see https://docs.mapbox.com/data/tilesets/reference/mapbox-traffic-v1/ */
+  setTraffic(map: mapboxgl.Map, on: boolean) {
+    const SRC = 'fr-traffic';
+    const LYR = 'fr-traffic-line';
+    if (!on) {
+      if (map.getLayer(LYR)) map.removeLayer(LYR);
+      if (map.getSource(SRC)) map.removeSource(SRC);
+      return;
+    }
+    if (!map.getSource(SRC)) {
+      map.addSource(SRC, { type: 'vector', url: 'mapbox://mapbox.mapbox-traffic-v1' });
+    }
+    if (!map.getLayer(LYR)) {
+      map.addLayer({
+        id: LYR,
+        type: 'line',
+        source: SRC,
+        'source-layer': 'traffic',
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: {
+          'line-width': ['interpolate', ['linear'], ['zoom'], 8, 1.5, 14, 4, 18, 8],
+          'line-color': [
+            'match',
+            ['get', 'congestion'],
+            'low', '#22c55e',
+            'moderate', '#f59e0b',
+            'heavy', '#ef4444',
+            'severe', '#991b1b',
+            '#94a3b8',
+          ],
+        },
+      });
+    }
+  }
+
+  // ── Viento (raster-particle GFS) ──────────────────────────────────────────
+  /** @see https://docs.mapbox.com/style-spec/reference/layers/#raster-particle */
+  setWind(map: mapboxgl.Map, on: boolean) {
+    const SRC = 'fr-wind';
+    const LYR = 'fr-wind-particles';
+    if (!on) {
+      if (map.getLayer(LYR)) map.removeLayer(LYR);
+      if (map.getSource(SRC)) map.removeSource(SRC);
+      return;
+    }
+    if (!map.getSource(SRC)) {
+      map.addSource(SRC, {
+        type: 'raster-array',
+        url: 'mapbox://mapbox.gfs-winds',
+        tileSize: 512,
+      } as unknown as mapboxgl.RasterArraySourceSpecification);
+    }
+    if (!map.getLayer(LYR)) {
+      map.addLayer({
+        id: LYR,
+        type: 'raster-particle',
+        source: SRC,
+        'source-layer': '10winds',
+        paint: {
+          'raster-particle-speed-factor': 0.4,
+          'raster-particle-fade-opacity-factor': 0.9,
+          'raster-particle-reset-rate-factor': 0.4,
+          'raster-particle-count': 2048,
+          'raster-particle-max-speed': 40,
+          'raster-particle-color': [
+            'interpolate',
+            ['linear'],
+            ['raster-particle-speed'],
+            1.5, 'rgba(134,163,171,256)',
+            10, 'rgba(57,163,155,256)',
+            20, 'rgba(66,182,101,256)',
+            40, 'rgba(224,215,64,256)',
+            60, 'rgba(232,133,50,256)',
+            100, 'rgba(232,74,54,256)',
+          ],
+        },
+      } as unknown as mapboxgl.LayerSpecification);
+    }
+  }
 }

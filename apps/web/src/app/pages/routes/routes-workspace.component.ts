@@ -15,6 +15,7 @@ import {
   TERMINAL_ROUTE_STATUSES,
   TRACKABLE_ROUTE_STATUSES,
   Vehicle,
+  WeatherResult,
 } from '../../core/models';
 import {
   DELIVER_BADGE,
@@ -79,6 +80,10 @@ export class RoutesWorkspaceComponent implements OnInit {
 
   /** Paradas desplegadas en la línea de tiempo. */
   expanded = signal<Record<string, boolean>>({});
+
+  /** Clima de la primera parada de la ruta seleccionada. */
+  weather = signal<WeatherResult | null>(null);
+  weatherLoading = signal(false);
 
   readonly ROUTE_LABEL = ROUTE_LABEL;
   readonly ROUTE_BADGE = ROUTE_BADGE;
@@ -206,12 +211,28 @@ export class RoutesWorkspaceComponent implements OnInit {
       next: (r) => {
         this.detail.set(r);
         this.loadingDetail.set(false);
+        this.loadWeather();
       },
       error: () => {
         this.loadingDetail.set(false);
         this.notify('err', 'No se encontró la ruta');
         void this.router.navigate(['/app/routes']);
       },
+    });
+  }
+
+  /** Carga el clima usando la primera parada geolocalizada de la ruta. */
+  loadWeather() {
+    this.weather.set(null);
+    const first = this.mapPoints()[0];
+    if (!first) return;
+    this.weatherLoading.set(true);
+    this.api.weather(first.lat, first.lng).subscribe({
+      next: (w) => {
+        this.weather.set(w);
+        this.weatherLoading.set(false);
+      },
+      error: () => this.weatherLoading.set(false),
     });
   }
 

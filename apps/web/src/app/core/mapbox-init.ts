@@ -65,4 +65,6 @@ export declare namespace mapboxgl {
   export type LngLatBounds = MapboxGL.LngLatBounds;
   export type GeoJSONSource = MapboxGL.GeoJSONSource;
   export type ErrorEvent = MapboxGL.ErrorEvent;
+  export type LayerSpecification = MapboxGL.LayerSpecification;
+  export type RasterArraySourceSpecification = MapboxGL.RasterArraySourceSpecification;
 }

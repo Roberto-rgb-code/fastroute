@@ -379,3 +379,19 @@ export interface ClientConfig {
   googleMaps: { apiKey: string };
   pusher: { key: string; cluster: string };
 }
+
+export interface WeatherResult {
+  lat: number;
+  lng: number;
+  now: {
+    tempC: number | null;
+    windKmh: number | null;
+    windDir: number | null;
+    precipMm: number | null;
+    code: number | null;
+    label: string;
+    isDay: boolean;
+  };
+  hourly: { time: string; tempC: number; precipMm: number; windKmh: number }[];
+  fetchedAt: string;
+}
