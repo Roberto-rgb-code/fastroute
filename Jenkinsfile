@@ -44,6 +44,13 @@ pipeline {
       }
     }
 
+    stage('Typecheck Mobile') {
+      steps {
+        // La app móvil (Expo) mantiene node_modules aislado, fuera de los workspaces.
+        sh 'npm run typecheck:mobile'
+      }
+    }
+
     stage('Unit tests (Jest)') {
       steps {
         sh 'npm run test:ci'
