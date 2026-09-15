@@ -12,6 +12,7 @@ import {
   untracked,
 } from '@angular/core';
 import { mapboxgl, MAPBOX_GL_FALLBACK_STYLE, MapService } from '../core/map.service';
+import { IconComponent } from './icon.component';
 
 export interface MapPoint {
   lat: number;
@@ -29,6 +30,7 @@ const DEFAULT_CENTER: [number, number] = [-103.3496, 20.6597];
 @Component({
   selector: 'app-route-map',
   standalone: true,
+  imports: [IconComponent],
   template: `
     <div class="relative h-full min-h-[280px] w-full overflow-hidden">
       <div class="absolute left-3 top-3 z-10 flex flex-wrap gap-1.5">
