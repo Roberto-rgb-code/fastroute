@@ -3,6 +3,8 @@
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
+    "prestart": "node -e \"const fs=require('fs');const p=require('path');const src=p.join(require.resolve('mapbox-gl/package.json'),'..','dist','mapbox-gl-csp-worker.js');const copies=[p.join(process.cwd(),'public/mapbox-gl-csp-worker.js'),p.join(process.cwd(),'src/assets/mapbox-gl-csp-worker.js')];for(const dst of copies){fs.mkdirSync(p.dirname(dst),{recursive:true});fs.copyFileSync(src,dst);}\"",
+    "postinstall": "npm run prestart",
     "start": "ng serve --proxy-config proxy.conf.json",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",

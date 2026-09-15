@@ -1,10 +1,8 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
-/** Exposes public client config (map/realtime keys) to authenticated apps. */
+/** Claves de cliente (Mapbox, Pusher, etc.) — públicas en el navegador; no requieren JWT. */
 @Controller('config')
-@UseGuards(JwtAuthGuard)
 export class ConfigController {
   constructor(private readonly config: ConfigService) {}
 
@@ -14,7 +12,7 @@ export class ConfigController {
       mapbox: {
         token: this.config.get<string>('MAPBOX_ACCESS_TOKEN') ?? '',
         styleUrl:
-          this.config.get<string>('MAPBOX_STYLE_URL') ?? 'mapbox://styles/mapbox/light-v11',
+          this.config.get<string>('MAPBOX_STYLE_URL') ?? 'mapbox://styles/mapbox/streets-v12',
       },
       googleMaps: {
         apiKey: this.config.get<string>('GOOGLE_MAPS_API_KEY') ?? '',

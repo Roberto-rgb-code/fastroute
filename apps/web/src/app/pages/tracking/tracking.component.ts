@@ -1,19 +1,18 @@
 import {
+  AfterViewInit,
   Component,
   ElementRef,
   OnDestroy,
-  OnInit,
   ViewChild,
   inject,
   signal,
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import mapboxgl from 'mapbox-gl';
-import Pusher from 'pusher-js';
 import { ApiService } from '../../core/api.service';
 import { AuthService } from '../../core/auth.service';
-import { MapService } from '../../core/map.service';
+import { mapboxgl, MapService } from '../../core/map.service';
+import Pusher from 'pusher-js';
 import { RouteSummary } from '../../core/models';
 import { IconComponent } from '../../shared/icon.component';
 import { ROUTE_BADGE, ROUTE_LABEL } from '../../core/status';
@@ -32,7 +31,7 @@ interface LiveFix {
   templateUrl: './tracking.component.html',
   styleUrl: './tracking.component.scss',
 })
-export class TrackingComponent implements OnInit, OnDestroy {
+export class TrackingComponent implements AfterViewInit, OnDestroy {
   private api = inject(ApiService);
   private auth = inject(AuthService);
   private maps = inject(MapService);
@@ -56,7 +55,7 @@ export class TrackingComponent implements OnInit, OnDestroy {
   ROUTE_LABEL = ROUTE_LABEL;
   ROUTE_BADGE = ROUTE_BADGE;
 
-  async ngOnInit() {
+  async ngAfterViewInit() {
     const token = await this.maps.ensureConfig();
     if (!token) {
       this.error.set('Falta MAPBOX_ACCESS_TOKEN. Agrégalo al .env y reinicia la API.');

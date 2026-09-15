@@ -1,0 +1,23 @@
+/* Sidebar: letras e iconos siempre blancos (el `a { color }` global ya no los pisa). */
+:host aside[aria-label='Navegación principal'],
+:host aside[aria-label='Navegación principal'] a,
+:host aside[aria-label='Navegación principal'] button,
+:host aside[aria-label='Navegación principal'] span,
+:host aside[aria-label='Navegación principal'] strong,
+:host aside[aria-label='Navegación principal'] app-icon,
+:host aside[aria-label='Navegación principal'] iconify-icon {
+  color: #ffffff !important;
+}
+
+:host aside[aria-label='Navegación principal'] a:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+:host aside[aria-label='Navegación principal'] a {
+  transition: background 0.18s ease, transform 0.18s ease;
+}
+
+:host aside[aria-label='Navegación principal'] .text-muted,
+:host aside[aria-label='Navegación principal'] .nav-meta {
+  color: rgba(255, 255, 255, 0.72) !important;
+}

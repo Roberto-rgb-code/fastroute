@@ -1,8 +1,9 @@
 import {
+  AfterViewInit,
   Component,
   ElementRef,
+  NgZone,
   OnDestroy,
-  OnInit,
   ViewChild,
   effect,
   inject,
@@ -10,8 +11,7 @@ import {
   signal,
   untracked,
 } from '@angular/core';
-import mapboxgl from 'mapbox-gl';
-import { MapService } from '../core/map.service';
+import { mapboxgl, MAPBOX_GL_FALLBACK_STYLE, MapService } from '../core/map.service';
 
 export interface MapPoint {
   lat: number;
@@ -23,15 +23,14 @@ export interface MapPoint {
 
 type MapMode = '2d' | '3d' | 'satellite';
 
-/**
- * Mapa de ruta con Mapbox GL + Directions (estilo custom del proyecto).
- * Controles: 2D / 3D / Satélite.
- */
+/** Guadalajara — demo por defecto. */
+const DEFAULT_CENTER: [number, number] = [-103.3496, 20.6597];
+
 @Component({
   selector: 'app-route-map',
   standalone: true,
   template: `
-    <div class="relative flex h-full min-h-[280px] w-full flex-col">
+    <div class="relative h-full min-h-[280px] w-full overflow-hidden">
       <div class="absolute left-3 top-3 z-10 flex flex-wrap gap-1.5">
         <span class="rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-semibold text-ink-700 shadow-sm">
           Mapbox
@@ -61,14 +60,15 @@ type MapMode = '2d' | '3d' | 'satellite';
           {{ loadError() }}
         </div>
       }
-      <div #host class="min-h-0 w-full flex-1"></div>
+      <div #host class="absolute inset-0 h-full w-full"></div>
     </div>
   `,
   styles: [':host{display:block;height:100%;width:100%;min-height:280px}'],
 })
-export class RouteMapComponent implements OnInit, OnDestroy {
+export class RouteMapComponent implements AfterViewInit, OnDestroy {
   points = input<MapPoint[]>([]);
   private maps = inject(MapService);
+  private zone = inject(NgZone);
 
   @ViewChild('host', { static: true }) host!: ElementRef<HTMLDivElement>;
 
@@ -86,7 +86,9 @@ export class RouteMapComponent implements OnInit, OnDestroy {
   private markers: mapboxgl.Marker[] = [];
   private ready = false;
   private drawSeq = 0;
-  private customStyle = '';
+  private baseStyle = MAPBOX_GL_FALLBACK_STYLE;
+  private resizeObs?: ResizeObserver;
+  private booted = false;
 
   constructor() {
     effect(() => {
@@ -95,7 +97,10 @@ export class RouteMapComponent implements OnInit, OnDestroy {
     });
   }
 
-  async ngOnInit() {
+  async ngAfterViewInit() {
+    if (this.booted) return;
+    this.booted = true;
+
     const token = await this.maps.ensureConfig();
     if (!token) {
       this.loadError.set('Configura MAPBOX_ACCESS_TOKEN en .env y reinicia la API.');
@@ -103,15 +108,37 @@ export class RouteMapComponent implements OnInit, OnDestroy {
         '<div style="height:100%;display:grid;place-items:center;background:#e8eef5;color:#475569;font:600 13px Inter,sans-serif;text-align:center;padding:1rem">Mapbox no configurado</div>';
       return;
     }
-    this.customStyle = this.maps.styleUrl();
+    this.baseStyle = this.maps.mapStyleUrl();
+
+    this.resizeObs = new ResizeObserver(() => this.map?.resize());
+    this.resizeObs.observe(this.host.nativeElement);
+    if (this.host.nativeElement.parentElement) {
+      this.resizeObs.observe(this.host.nativeElement.parentElement);
+    }
+
     const pts = untracked(() => this.points());
-    const center: [number, number] = pts.length ? [pts[0].lng, pts[0].lat] : [-99.1332, 19.4326];
-    this.map = this.maps.createMap(this.host.nativeElement, center, 11);
-    this.map.addControl(new mapboxgl.NavigationControl({ visualizePitch: true }), 'bottom-right');
-    this.map.on('load', () => {
-      this.ready = true;
-      void this.draw(this.points());
+    const center: [number, number] = pts.length ? [pts[0].lng, pts[0].lat] : DEFAULT_CENTER;
+    const zoom = pts.length ? 11 : 10;
+
+    this.zone.runOutsideAngular(() => {
+      this.map = this.maps.createMap(this.host.nativeElement, center, zoom);
+      this.map.addControl(new mapboxgl.NavigationControl({ visualizePitch: true }), 'bottom-right');
+      this.map.on('error', (ev) => {
+        const msg = String(ev.error?.message ?? ev.error ?? 'Error de Mapbox');
+        this.zone.run(() => this.loadError.set(msg));
+      });
+      this.map.on('load', () => {
+        this.ready = true;
+        this.map?.resize();
+        this.zone.run(() => void this.draw(this.points()));
+        if (!pts.length) {
+          this.map?.flyTo({ center: DEFAULT_CENTER, zoom: 10, duration: 0 });
+        }
+      });
     });
+
+    setTimeout(() => this.map?.resize(), 100);
+    setTimeout(() => this.map?.resize(), 500);
   }
 
   setMode(m: MapMode) {
@@ -120,13 +147,17 @@ export class RouteMapComponent implements OnInit, OnDestroy {
     if (!map) return;
     if (m === 'satellite') {
       map.setStyle('mapbox://styles/mapbox/satellite-streets-v12');
-      map.once('style.load', () => void this.draw(this.points()));
+      map.once('style.load', () => {
+        map.resize();
+        void this.draw(this.points());
+      });
       return;
     }
-    // Volver al estilo del proyecto
-    if (map.getStyle()?.sprite?.includes('satellite') || map.getStyle()?.name?.toLowerCase().includes('satellite')) {
-      map.setStyle(this.customStyle || this.maps.styleUrl());
+    const style = map.getStyle()?.sprite ?? '';
+    if (style.includes('satellite')) {
+      map.setStyle(this.baseStyle);
       map.once('style.load', () => {
+        map.resize();
         this.applyCamera(m);
         void this.draw(this.points());
       });
@@ -191,10 +222,12 @@ export class RouteMapComponent implements OnInit, OnDestroy {
       sorted.map((p) => ({ lat: p.lat, lng: p.lng })),
       56,
     );
+    map.resize();
     this.applyCamera(this.mode());
   }
 
   ngOnDestroy() {
+    this.resizeObs?.disconnect();
     this.markers.forEach((m) => m.remove());
     this.map?.remove();
     this.map = undefined;

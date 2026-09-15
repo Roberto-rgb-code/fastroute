@@ -39,6 +39,7 @@ const ROLE_LABEL: Record<string, string> = {
   standalone: true,
   imports: [RouterOutlet, RouterLink, RouterLinkActive, IconComponent, FormsModule],
   templateUrl: './shell.component.html',
+  styleUrl: './shell.component.scss',
 })
 export class ShellComponent implements OnInit {
   readonly auth = inject(AuthService);

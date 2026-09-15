@@ -73,6 +73,8 @@ services:
       - "4200:4200"
     volumes:
       - ./apps/web/src:/app/apps/web/src
+      - ./apps/web/angular.json:/app/apps/web/angular.json:ro
+      - ./apps/web/public:/app/apps/web/public
       - ./apps/web/proxy.conf.docker.json:/app/apps/web/proxy.conf.docker.json:ro
     depends_on:
       - api

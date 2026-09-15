@@ -1,7 +1,13 @@
-import { Injectable, inject, signal } from '@angular/core';
-import { firstValueFrom } from 'rxjs';
-import mapboxgl from 'mapbox-gl';
-import { ApiService } from './api.service';
+import { Injectable, signal } from '@angular/core';
+import { mapboxgl } from './mapbox-init';
+import type { ClientConfig } from './models';
+
+export type MapboxMap = mapboxgl.Map;
+export type MapboxMarker = mapboxgl.Marker;
+export type MapboxPopup = mapboxgl.Popup;
+export type MapboxLngLatBounds = mapboxgl.LngLatBounds;
+export type MapboxGeoJSONSource = mapboxgl.GeoJSONSource;
+export { mapboxgl };
 
 export interface DirectionsResult {
   coordinates: [number, number][];
@@ -9,29 +15,52 @@ export interface DirectionsResult {
   durationS: number;
 }
 
+/** Estilo que siempre pinta tiles en mapbox-gl. */
+export const MAPBOX_GL_FALLBACK_STYLE = 'mapbox://styles/mapbox/streets-v12';
+
 /**
  * Mapbox GL + Directions. Token y estilo vienen de /config/client.
+ * @see https://docs.mapbox.com/mapbox-gl-js/guides/
  */
 @Injectable({ providedIn: 'root' })
 export class MapService {
-  private api = inject(ApiService);
   readonly token = signal<string | null>(null);
-  readonly styleUrl = signal('mapbox://styles/mapbox/light-v11');
+  readonly styleUrl = signal(MAPBOX_GL_FALLBACK_STYLE);
+  readonly mapStyleUrl = signal(MAPBOX_GL_FALLBACK_STYLE);
   private loaded = false;
 
   async ensureConfig(): Promise<string | null> {
-    if (this.loaded) return this.token();
+    if (this.loaded && this.token()) return this.token();
+
     try {
-      const cfg = await firstValueFrom(this.api.clientConfig());
+      const cfg = await this.fetchClientConfig();
       const t = cfg.mapbox?.token?.trim() || null;
       this.token.set(t);
-      if (cfg.mapbox?.styleUrl) this.styleUrl.set(cfg.mapbox.styleUrl);
+      const preferred = cfg.mapbox?.styleUrl?.trim() || MAPBOX_GL_FALLBACK_STYLE;
+      this.styleUrl.set(preferred);
+      this.mapStyleUrl.set(this.resolveGlStyle(preferred));
       if (t) mapboxgl.accessToken = t;
-    } catch {
+      this.loaded = true;
+    } catch (e) {
+      console.warn('[MapService] No se pudo cargar /config/client', e);
       this.token.set(null);
     }
-    this.loaded = true;
+
     return this.token();
+  }
+
+  /** Misma URL que ApiService; fetch evita race con interceptors al arrancar. */
+  private async fetchClientConfig(): Promise<ClientConfig> {
+    const res = await fetch('/api/v1/config/client', { credentials: 'same-origin' });
+    if (!res.ok) {
+      throw new Error(`config/client ${res.status}`);
+    }
+    return res.json() as Promise<ClientConfig>;
+  }
+
+  resolveGlStyle(preferred: string): string {
+    if (/^mapbox:\/\/styles\/mapbox\//i.test(preferred)) return preferred;
+    return MAPBOX_GL_FALLBACK_STYLE;
   }
 
   get hasToken(): boolean {
@@ -42,17 +71,41 @@ export class MapService {
     container: HTMLElement,
     center: [number, number],
     zoom = 11,
-    opts: { pitch?: number; bearing?: number } = {},
+    opts: { pitch?: number; bearing?: number; style?: string } = {},
   ): mapboxgl.Map {
-    return new mapboxgl.Map({
+    const token = this.token();
+    if (!token) {
+      throw new Error('Mapbox access token missing — configura MAPBOX_ACCESS_TOKEN en .env');
+    }
+
+    const style = opts.style ?? this.mapStyleUrl();
+    const map = new mapboxgl.Map({
+      accessToken: token,
       container,
-      style: this.styleUrl(),
+      style,
       center,
       zoom,
       pitch: opts.pitch ?? 0,
       bearing: opts.bearing ?? 0,
       attributionControl: true,
+      failIfMajorPerformanceCaveat: false,
     });
+
+    let fellBack = false;
+    map.on('error', (ev: mapboxgl.ErrorEvent) => {
+      const msg = String(ev.error?.message ?? ev.error ?? '');
+      if (fellBack || !msg) return;
+      if (/style|sprite|glyph|tile|401|403|worker/i.test(msg)) {
+        fellBack = true;
+        map.setStyle(MAPBOX_GL_FALLBACK_STYLE);
+      }
+    });
+
+    map.once('load', () => {
+      requestAnimationFrame(() => map.resize());
+    });
+
+    return map;
   }
 
   fitToStops(map: mapboxgl.Map, stops: { lat: number; lng: number }[], padding = 60) {
@@ -72,7 +125,6 @@ export class MapService {
     return el;
   }
 
-  /** Marcador de unidad en vivo (pulso). */
   vehicleMarker(): HTMLElement {
     const el = document.createElement('div');
     el.innerHTML = `
@@ -86,10 +138,6 @@ export class MapService {
     return el;
   }
 
-  /**
-   * Directions API (perfil driving-traffic).
-   * coords: [lng, lat][] — máximo ~25 waypoints en free tier práctico.
-   */
   async fetchDirections(coords: [number, number][]): Promise<DirectionsResult | null> {
     const token = this.token();
     if (!token || coords.length < 2) return null;
