@@ -12,9 +12,10 @@ import {
   View,
 } from 'react-native';
 import { api, Message } from '../../src/api';
+import { subscribeRouteMessages } from '../../src/pusher';
 import { theme } from '../../src/theme';
 
-/** Chat del conductor con la central (web). Realtime por polling ligero. */
+/** Chat del conductor con la central (web). Tiempo real vía Pusher (fallback: recarga manual al enviar). */
 export default function ChatScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -23,28 +24,39 @@ export default function ChatScreen() {
   const [sending, setSending] = useState(false);
   const listRef = useRef<FlatList<Message>>(null);
 
-  const load = useCallback(
-    async (silent = false) => {
-      if (!id) return;
-      if (!silent) setLoading(true);
-      try {
-        const msgs = await api.messages(id);
-        setMessages((prev) => (prev.length === msgs.length && silent ? prev : msgs));
-        api.markMessagesRead(id).catch(() => undefined);
-      } catch {
-        /* ignore */
-      } finally {
-        if (!silent) setLoading(false);
-      }
-    },
-    [id],
-  );
+  const appendMessage = useCallback((msg: Message) => {
+    setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]));
+    if (msg.sender === 'ADMIN') {
+      api.markMessagesRead(msg.routeId).catch(() => undefined);
+    }
+  }, []);
+
+  const load = useCallback(async () => {
+    if (!id) return;
+    setLoading(true);
+    try {
+      const msgs = await api.messages(id);
+      setMessages(msgs);
+      api.markMessagesRead(id).catch(() => undefined);
+    } catch {
+      /* ignore */
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
 
   useEffect(() => {
     load();
-    const t = setInterval(() => load(true), 6000);
-    return () => clearInterval(t);
   }, [load]);
+
+  useEffect(() => {
+    if (!id) return;
+    let cleanup: (() => void) | undefined;
+    void subscribeRouteMessages(id, appendMessage).then((fn) => {
+      cleanup = fn;
+    });
+    return () => cleanup?.();
+  }, [id, appendMessage]);
 
   useEffect(() => {
     if (messages.length) {
@@ -58,7 +70,7 @@ export default function ChatScreen() {
     setSending(true);
     try {
       const msg = await api.sendMessage(id, body);
-      setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]));
+      appendMessage(msg);
       setDraft('');
     } catch {
       /* ignore */
