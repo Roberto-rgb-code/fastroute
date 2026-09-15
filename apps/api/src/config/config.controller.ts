@@ -13,6 +13,8 @@ export class ConfigController {
     return {
       mapbox: {
         token: this.config.get<string>('MAPBOX_ACCESS_TOKEN') ?? '',
+        styleUrl:
+          this.config.get<string>('MAPBOX_STYLE_URL') ?? 'mapbox://styles/mapbox/light-v11',
       },
       googleMaps: {
         apiKey: this.config.get<string>('GOOGLE_MAPS_API_KEY') ?? '',

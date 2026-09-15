@@ -375,7 +375,7 @@ export interface OperationsReport {
 }
 
 export interface ClientConfig {
-  mapbox: { token: string };
+  mapbox: { token: string; styleUrl: string };
   googleMaps: { apiKey: string };
   pusher: { key: string; cluster: string };
 }

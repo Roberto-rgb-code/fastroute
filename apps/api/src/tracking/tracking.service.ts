@@ -1,12 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import Pusher from 'pusher';
 import { PublishLocationDto } from './dto/publish-location.dto';
+
+// pusher es CJS; el default import falla en algunos builds de Nest.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const Pusher = require('pusher') as typeof import('pusher');
 
 @Injectable()
 export class TrackingService {
   private readonly logger = new Logger(TrackingService.name);
-  private pusher: Pusher | null = null;
+  private pusher: InstanceType<typeof Pusher> | null = null;
 
   constructor(private readonly config: ConfigService) {
     const appId = config.get<string>('PUSHER_APP_ID');
@@ -16,6 +19,7 @@ export class TrackingService {
 
     if (appId && key && secret) {
       this.pusher = new Pusher({ appId, key, secret, cluster, useTLS: true });
+      this.logger.log(`Pusher listo (cluster ${cluster})`);
     } else {
       this.logger.warn('Pusher no configurado — tracking en vivo deshabilitado (demo local OK)');
     }
