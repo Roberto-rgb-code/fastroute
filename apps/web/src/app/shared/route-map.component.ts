@@ -30,8 +30,6 @@ type MapMode = '2d' | '3d' | 'satellite';
 
 /** Guadalajara — demo por defecto. */
 const DEFAULT_CENTER: [number, number] = [-103.3496, 20.6597];
-/** Estilo tipo demo Mapbox “Wind Speed” (satélite + partículas). */
-const WIND_SCENE_STYLE = 'mapbox://styles/mapbox/satellite-streets-v12';
 
 @Component({
   selector: 'app-route-map',
@@ -40,9 +38,6 @@ const WIND_SCENE_STYLE = 'mapbox://styles/mapbox/satellite-streets-v12';
   template: `
     <div class="relative h-full min-h-[280px] w-full overflow-hidden">
       <div class="absolute left-3 top-3 z-10 flex flex-wrap gap-1.5">
-        <span class="rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-semibold text-ink-700 shadow-sm">
-          Mapbox
-        </span>
         @if (routeMeta()) {
           <span class="rounded-full bg-brand-600 px-2.5 py-1 text-[11px] font-semibold text-white shadow-sm">
             {{ routeMeta() }}
@@ -54,10 +49,12 @@ const WIND_SCENE_STYLE = 'mapbox://styles/mapbox/satellite-streets-v12';
           @for (m of modes; track m.id) {
             <button
               type="button"
-              class="rounded-md px-2 py-1 text-[11px] font-semibold"
+              class="rounded-md px-2 py-1 text-[11px] font-semibold transition-colors"
               [class.bg-brand-600]="mode() === m.id"
               [class.text-white]="mode() === m.id"
+              [class.shadow-inner]="mode() === m.id"
               [class.text-ink-600]="mode() !== m.id"
+              [class.hover:bg-ink-100]="mode() !== m.id"
               (click)="setMode(m.id)"
             >
               {{ m.label }}
@@ -67,10 +64,8 @@ const WIND_SCENE_STYLE = 'mapbox://styles/mapbox/satellite-streets-v12';
         <div class="flex gap-1.5">
           <button
             type="button"
-            class="inline-flex items-center gap-1 rounded-lg bg-white/95 px-2 py-1 text-[11px] font-semibold shadow-sm"
-            [class.bg-brand-600]="trafficOn()"
-            [class.text-white]="trafficOn()"
-            [class.text-ink-600]="!trafficOn()"
+            class="map-tool-btn inline-flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold shadow-sm transition-all"
+            [class.map-tool-btn--on]="trafficOn()"
             (click)="toggleTraffic()"
             title="Tráfico en tiempo real"
           >
@@ -78,12 +73,10 @@ const WIND_SCENE_STYLE = 'mapbox://styles/mapbox/satellite-streets-v12';
           </button>
           <button
             type="button"
-            class="inline-flex items-center gap-1 rounded-lg bg-white/95 px-2 py-1 text-[11px] font-semibold shadow-sm"
-            [class.bg-brand-600]="windOn()"
-            [class.text-white]="windOn()"
-            [class.text-ink-600]="!windOn()"
+            class="map-tool-btn inline-flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold shadow-sm transition-all"
+            [class.map-tool-btn--on]="windOn()"
             (click)="toggleWind()"
-            title="Animación de viento (Open-Meteo; la demo Mapbox GFS requiere tileset de pago)"
+            title="Capa de viento sobre el mapa actual"
           >
             <app-icon name="wind" [size]="13" class="text-current" /> Viento
           </button>
@@ -112,7 +105,31 @@ const WIND_SCENE_STYLE = 'mapbox://styles/mapbox/satellite-streets-v12';
       <div #host class="absolute inset-0 h-full w-full"></div>
     </div>
   `,
-  styles: [':host{display:block;height:100%;width:100%;min-height:280px}'],
+  styles: [
+    ':host{display:block;height:100%;width:100%;min-height:280px}',
+    `
+      .map-tool-btn {
+        border-color: rgb(226 232 240 / 0.95);
+        background: rgb(255 255 255 / 0.96);
+        color: rgb(51 65 85);
+      }
+      .map-tool-btn:hover:not(.map-tool-btn--on) {
+        background: rgb(248 250 252);
+        border-color: rgb(203 213 225);
+      }
+      .map-tool-btn--on {
+        border-color: rgb(29 78 216);
+        background: rgb(37 99 235);
+        color: rgb(255 255 255);
+        box-shadow:
+          inset 0 2px 4px rgb(30 64 175 / 0.35),
+          0 1px 2px rgb(15 23 42 / 0.12);
+      }
+      .map-tool-btn--on:hover {
+        background: rgb(29 78 216);
+      }
+    `,
+  ],
 })
 export class RouteMapComponent implements AfterViewInit, OnDestroy {
   points = input<MapPoint[]>([]);
@@ -148,7 +165,6 @@ export class RouteMapComponent implements AfterViewInit, OnDestroy {
   private windMoveTimer?: ReturnType<typeof setTimeout>;
   private windOverlay?: WindParticleOverlay;
   private windResizeHandler?: () => void;
-  private modeBeforeWind: MapMode | null = null;
   private windEnabling = false;
 
   constructor() {
@@ -208,10 +224,6 @@ export class RouteMapComponent implements AfterViewInit, OnDestroy {
   }
 
   setMode(m: MapMode) {
-    if (this.windOn() && m !== 'satellite') {
-      void this.disableWind().then(() => this.setMode(m));
-      return;
-    }
     this.mode.set(m);
     const map = this.map;
     if (!map) return;
@@ -259,12 +271,6 @@ export class RouteMapComponent implements AfterViewInit, OnDestroy {
     if (!map) return;
     this.windEnabling = true;
     try {
-      this.modeBeforeWind = this.mode();
-      if (this.modeBeforeWind !== 'satellite') {
-        await this.applyMapStyle(WIND_SCENE_STYLE);
-      }
-      this.mode.set('satellite');
-
       const center = map.getCenter();
       const seed = await firstValueFrom(this.api.weather(center.lat, center.lng));
       this.windInfo.set({
@@ -303,29 +309,6 @@ export class RouteMapComponent implements AfterViewInit, OnDestroy {
     this.detachWindMove();
     this.stopWindOverlay();
     if (map) this.maps.clearWindGfs(map);
-    const prevMode = this.modeBeforeWind;
-    this.modeBeforeWind = null;
-    if (map && prevMode && prevMode !== 'satellite') {
-      await this.applyMapStyle(this.baseStyle);
-    }
-    if (prevMode) {
-      this.mode.set(prevMode);
-      this.applyCamera(prevMode);
-    }
-  }
-
-  private applyMapStyle(style: string): Promise<void> {
-    const map = this.map;
-    if (!map) return Promise.resolve();
-    return new Promise((resolve) => {
-      map.setStyle(style);
-      map.once('style.load', () => {
-        map.resize();
-        this.reapplyOverlays(false);
-        void this.draw(this.points());
-        resolve();
-      });
-    });
   }
 
   private startWindOverlay() {

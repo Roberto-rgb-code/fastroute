@@ -28,13 +28,13 @@ export class WindParticleOverlay {
 
     this.dimmer = document.createElement('div');
     this.dimmer.className =
-      'pointer-events-none absolute inset-0 z-[1] bg-gradient-to-b from-slate-950/70 via-slate-900/55 to-slate-950/65';
+      'pointer-events-none absolute inset-0 z-[1] bg-slate-900/25';
     this.dimmer.setAttribute('aria-hidden', 'true');
     parent.appendChild(this.dimmer);
 
     this.canvas = document.createElement('canvas');
     this.canvas.className = 'pointer-events-none absolute inset-0 z-[2] h-full w-full';
-    this.canvas.style.mixBlendMode = 'plus-lighter';
+    this.canvas.style.mixBlendMode = 'normal';
     this.canvas.setAttribute('aria-hidden', 'true');
     parent.appendChild(this.canvas);
 
