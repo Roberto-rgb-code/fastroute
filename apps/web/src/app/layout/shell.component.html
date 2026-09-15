@@ -86,8 +86,32 @@
           <strong class="block truncate text-sm text-white">{{ auth.user()?.name }}</strong>
           <span class="nav-meta text-[11px]">{{ ROLE_LABEL[auth.user()?.role || ''] }}</span>
         </div>
-        <button type="button" class="rounded-lg p-1.5 text-white hover:bg-white/10" (click)="logout()" title="Cerrar sesión">
-          <app-icon name="logout" [size]="18" [animated]="true" />
+        <div class="relative flex shrink-0 items-center gap-0.5">
+          <button
+            type="button"
+            class="relative rounded-lg p-1.5 text-white hover:bg-white/10"
+            (click)="toggleNotifications()"
+            title="Notificaciones"
+          >
+            <app-icon name="bell" [size]="18" [animated]="true" />
+            @if (notifications.unreadCount() > 0) {
+              <span class="absolute right-0.5 top-0.5 min-w-[14px] rounded-full bg-warn px-1 text-center text-[9px] font-extrabold text-white">
+                {{ notifications.unreadCount() > 9 ? '9+' : notifications.unreadCount() }}
+              </span>
+            }
+          </button>
+          <button type="button" class="rounded-lg p-1.5 text-white hover:bg-white/10" (click)="logout()" title="Cerrar sesión">
+            <app-icon name="logout" [size]="18" [animated]="true" />
+          </button>
+        </div>
+      } @else {
+        <button
+          type="button"
+          class="relative rounded-lg p-1.5 text-white hover:bg-white/10"
+          (click)="toggleNotifications()"
+          title="Notificaciones"
+        >
+          <app-icon name="bell" [size]="18" [animated]="true" />
         </button>
       }
     </div>
@@ -121,9 +145,52 @@
       </div>
 
       <div class="flex items-center gap-2">
+        <div class="relative">
+          <button
+            type="button"
+            class="relative grid rounded-lg p-2 text-ink-500 hover:bg-ink-100 hover:text-ink-900"
+            (click)="toggleNotifications()"
+            title="Notificaciones"
+          >
+            <app-icon name="bell" [size]="20" />
+            @if (notifications.unreadCount() > 0) {
+              <span class="absolute right-0.5 top-0.5 min-w-4 rounded-full bg-danger px-1 text-center text-[10px] font-extrabold text-white">
+                {{ notifications.unreadCount() > 9 ? '9+' : notifications.unreadCount() }}
+              </span>
+            }
+          </button>
+          @if (notifications.open()) {
+            <div class="absolute right-0 top-[calc(100%+8px)] z-30 w-[min(100vw-2rem,22rem)] rounded-xl border border-ink-200 bg-white shadow-[0_20px_45px_rgba(15,23,42,0.18)]">
+              <div class="flex items-center justify-between border-b border-ink-100 px-3 py-2.5">
+                <strong class="text-sm text-ink-900">Notificaciones</strong>
+                <button type="button" class="text-xs font-semibold text-brand-600" (click)="notifications.markAllRead()">Marcar leídas</button>
+              </div>
+              @if (!notifications.items().length) {
+                <p class="px-3 py-6 text-center text-sm text-ink-500">Sin novedades recientes.</p>
+              } @else {
+                <ul class="max-h-80 overflow-y-auto py-1">
+                  @for (n of notifications.items(); track n.id) {
+                    <li>
+                      <button
+                        type="button"
+                        class="flex w-full flex-col gap-0.5 px-3 py-2.5 text-left hover:bg-ink-50"
+                        [class.bg-brand-50]="!n.read"
+                        (click)="openNotification(n.href, n.id)"
+                      >
+                        <span class="text-sm font-semibold text-ink-900">{{ n.title }}</span>
+                        <span class="text-xs text-ink-600">{{ n.body }}</span>
+                        <span class="text-[10px] text-ink-400">{{ formatNotifTime(n.createdAt) }}</span>
+                      </button>
+                    </li>
+                  }
+                </ul>
+              }
+            </div>
+          }
+        </div>
         @if (pendingApprovals()) {
           <a class="relative grid rounded-lg p-2 text-ink-500 hover:bg-ink-100 hover:text-ink-900" routerLink="/app/routes" [queryParams]="{ approvals: 1 }" title="Aprobaciones pendientes">
-            <app-icon name="bell" [size]="20" />
+            <app-icon name="check" [size]="20" />
             <span class="absolute right-0.5 top-0.5 min-w-4 rounded-full bg-danger px-1 text-center text-[10px] font-extrabold text-white">{{ pendingApprovals() }}</span>
           </a>
         }

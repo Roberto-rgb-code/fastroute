@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { MessageSender, User, UserRole } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateMessageDto } from './dto/create-message.dto';
+import { PusherNotifyService } from '../realtime/pusher-notify.service';
 
 // pusher es CJS; el default import falla en algunos builds de Nest.
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -16,6 +17,7 @@ export class MessagesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
+    private readonly notify: PusherNotifyService,
   ) {
     const appId = config.get<string>('PUSHER_APP_ID');
     const key = config.get<string>('PUSHER_KEY');
@@ -72,10 +74,22 @@ export class MessagesService {
     });
 
     if (this.pusher) {
-      // Canal por ruta (lo escuchan web-admin y app-driver de esa ruta)
       await this.pusher.trigger(`route-${routeId}`, 'message', message);
-      // Canal de empresa (para badges/notificaciones del panel web)
       await this.pusher.trigger(`enterprise-${enterpriseId}`, 'message', message);
+    }
+
+    if (sender === MessageSender.DRIVER) {
+      const route = await this.prisma.route.findUnique({
+        where: { id: routeId },
+        select: { name: true },
+      });
+      await this.notify.notify(enterpriseId, {
+        type: 'message',
+        title: 'Mensaje del conductor',
+        body: `${route?.name ?? 'Ruta'}: ${message.body.slice(0, 120)}`,
+        routeId,
+        href: '/app/messages',
+      });
     }
 
     return message;

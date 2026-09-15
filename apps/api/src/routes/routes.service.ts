@@ -42,6 +42,7 @@ import {
   StartRouteDto,
   SubmitEvidenceDto,
 } from './dto/route-ops.dto';
+import { PusherNotifyService } from '../realtime/pusher-notify.service';
 
 const ROUTE_INCLUDE = {
   driver: true,
@@ -83,6 +84,7 @@ export class RoutesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly settings: SettingsService,
+    private readonly notify: PusherNotifyService,
   ) {}
 
   // ─────────────────────────── consultas ───────────────────────────
@@ -412,8 +414,11 @@ export class RoutesService {
 
   // ─────────────────────────── paradas ───────────────────────────
 
-  async reorderStops(enterpriseId: string, id: string, eventIdsInOrder: string[]) {
-    const route = await this.get(enterpriseId, id);
+  async reorderStops(enterpriseId: string, id: string, eventIdsInOrder: string[], actor?: User) {
+    const route =
+      actor?.role === UserRole.DRIVER
+        ? await this.getOwned(enterpriseId, id, actor)
+        : await this.get(enterpriseId, id);
     if (isTerminalRoute(route.status)) throw new BadRequestException('La ruta ya está cerrada');
     const ids = new Set(route.events.map((e) => e.id));
     if (eventIdsInOrder.some((eid) => !ids.has(eid))) {
@@ -517,6 +522,14 @@ export class RoutesService {
       });
     });
 
+    await this.notify.notify(enterpriseId, {
+      type: 'stop.completed',
+      title: 'Parada atendida',
+      body: `${route.name} · #${event.position} ${event.stop.label}`,
+      routeId,
+      href: '/app/routes',
+    });
+
     return this.get(enterpriseId, routeId);
   }
 
@@ -611,6 +624,24 @@ export class RoutesService {
         lat: dto.lat,
         lng: dto.lng,
       },
+    });
+    const reasonLabel: Record<string, string> = {
+      CAR_ACCIDENT: 'Accidente',
+      HOSPITAL: 'Hospital',
+      WC: 'Baño',
+      RESTAURANT: 'Restaurante',
+      PARKING: 'Estacionamiento',
+      TRAFFIC: 'Tráfico',
+      GAS: 'Gasolina',
+      ROBBERY: 'Robo',
+      OTHER: 'Otro',
+    };
+    await this.notify.notify(route.enterpriseId, {
+      type: 'incident',
+      title: 'Incidencia reportada',
+      body: `${route.name}: ${reasonLabel[dto.reason] ?? dto.reason}`,
+      routeId,
+      href: '/app/routes',
     });
     return this.get(enterpriseId, routeId);
   }
@@ -934,6 +965,46 @@ export class RoutesService {
     }
     await this.prisma.route.update({ where: { id: route.id }, data });
     await this.syncEntities(route.id);
+    await this.notifyRouteStatus(route, status);
+  }
+
+  private async notifyRouteStatus(route: Route, status: RouteStatus) {
+    const base = { routeId: route.id, href: '/app/routes' as const };
+    switch (status) {
+      case RouteStatus.ENROUTE:
+        await this.notify.notify(route.enterpriseId, {
+          ...base,
+          type: 'route.started',
+          title: 'Ruta en curso',
+          body: `${route.name} — el conductor inició`,
+        });
+        break;
+      case RouteStatus.COMPLETED:
+      case RouteStatus.FINISHED:
+        await this.notify.notify(route.enterpriseId, {
+          ...base,
+          type: 'route.completed',
+          title: 'Ruta completada',
+          body: `${route.name} — destino cerrado`,
+        });
+        break;
+      case RouteStatus.PAUSED:
+        await this.notify.notify(route.enterpriseId, {
+          ...base,
+          type: 'route.paused',
+          title: 'Ruta pausada',
+          body: route.name,
+        });
+        break;
+      case RouteStatus.CANCELLED:
+        await this.notify.notify(route.enterpriseId, {
+          ...base,
+          type: 'route.cancelled',
+          title: 'Ruta cancelada',
+          body: route.name,
+        });
+        break;
+    }
   }
 
   /** Tabla 6.3 + RN-SYN-01. */

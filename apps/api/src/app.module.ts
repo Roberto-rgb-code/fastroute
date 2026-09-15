@@ -19,6 +19,7 @@ import { ReportsModule } from './reports/reports.module';
 import { GeocodingModule } from './geocoding/geocoding.module';
 import { WeatherModule } from './weather/weather.module';
 import { MessagesModule } from './messages/messages.module';
+import { RealtimeModule } from './realtime/realtime.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { MessagesModule } from './messages/messages.module';
       isGlobal: true,
       envFilePath: ['.env', '../../.env'],
     }),
+    RealtimeModule,
     PrismaModule,
     AuthModule,
     SuperModule,

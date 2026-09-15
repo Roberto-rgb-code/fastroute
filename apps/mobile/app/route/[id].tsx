@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Location from 'expo-location';
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   Alert,
   Image,
@@ -15,6 +15,7 @@ import {
 import { api, DeliverStatus, RouteDetail, RouteStatus } from '../../src/api';
 import { Badge, Button, Card } from '../../src/components/ui';
 import { chooseImage, currentCoords } from '../../src/media';
+import { estimateLegMinutes, formatEta, optimizeStopOrder } from '../../src/routeOptimizer';
 import { theme } from '../../src/theme';
 
 const DELIVER_OPTS: { key: DeliverStatus; label: string; variant: 'ok' | 'warn' | 'danger' }[] = [
@@ -91,6 +92,20 @@ export default function RouteScreen() {
   const doneCount = route.events.filter((e) => e.status === 'COMPLETED').length;
   const checklistPending = route.checklist.some((c) => c.required && !c.done);
   const allStopsDone = route.events.length > 0 && doneCount === route.events.length;
+
+  const optimizedPlan = useMemo(() => optimizeStopOrder(route.events), [route.events]);
+  const nextStopId = optimizedPlan.find((e) => e.status !== 'COMPLETED')?.id;
+
+  const applyOptimizedOrder = async () => {
+    setBusy(true);
+    try {
+      setRoute(await api.reorderStops(route.id, optimizedPlan.map((e) => e.id)));
+    } catch (err) {
+      Alert.alert('No se pudo optimizar', String(err));
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const renderActions = () => {
     switch (route.status) {
@@ -180,15 +195,56 @@ export default function RouteScreen() {
       )}
 
       <View>
+        <Text style={styles.sectionTitle}>Plan optimizado</Text>
+        <Card>
+          <Text style={styles.planHint}>
+            Orden sugerido por prioridad y hora objetivo (ETA). La ruta más corta en tiempo operativo.
+          </Text>
+          {optimizedPlan.map((e, idx) => {
+            const completed = e.status === 'COMPLETED';
+            const isNext = e.id === nextStopId;
+            const etaMin = estimateLegMinutes(route.totalDuration, route.events.length, idx);
+            return (
+              <View key={e.id} style={[styles.planRow, isNext && styles.planRowNext]}>
+                <View style={[styles.planSeq, completed && styles.posDone, isNext && styles.planSeqNext]}>
+                  <Text style={[styles.planSeqText, (completed || isNext) && { color: '#fff' }]}>{idx + 1}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.stopLabel}>{e.stop.label}</Text>
+                  <Text style={styles.stopAddr}>
+                    {formatEta(e.eta)}
+                    {etaMin != null ? ` · ~${etaMin} min` : ''}
+                    {e.priority === 'URGENT' ? ' · Urgente' : ''}
+                  </Text>
+                </View>
+                {isNext && !completed && route.status === 'ENROUTE' ? (
+                  <Text style={styles.nextBadge}>Siguiente</Text>
+                ) : null}
+              </View>
+            );
+          })}
+          {['ENROUTE', 'PAUSED', 'CHECKLIST', 'CHECKLIST_PENDING', 'PENDING'].includes(route.status) && (
+            <Button
+              title="Aplicar este orden en la ruta"
+              variant="ghost"
+              onPress={applyOptimizedOrder}
+              loading={busy}
+              style={{ marginTop: 12 }}
+            />
+          )}
+        </Card>
+      </View>
+
+      <View>
         <Text style={styles.sectionTitle}>Paradas</Text>
-        {route.events.map((e) => {
+        {optimizedPlan.map((e, idx) => {
           const completed = e.status === 'COMPLETED';
           return (
-            <Card key={e.id} style={{ marginTop: 10 }}>
+            <Card key={e.id} style={{ marginTop: 10, borderColor: e.id === nextStopId ? theme.brand : theme.ink200, borderWidth: e.id === nextStopId ? 2 : 1 }}>
               <View style={styles.stopRow}>
-                <View style={[styles.pos, completed && styles.posDone]}>
-                  <Text style={[styles.posText, completed && { color: '#fff' }]}>
-                    {completed ? '✓' : e.position}
+                <View style={[styles.pos, completed && styles.posDone, e.id === nextStopId && !completed && styles.posNext]}>
+                  <Text style={[styles.posText, (completed || e.id === nextStopId) && { color: '#fff' }]}>
+                    {completed ? '✓' : idx + 1}
                   </Text>
                 </View>
                 <View style={{ flex: 1 }}>
@@ -508,6 +564,21 @@ const styles = StyleSheet.create({
   stopLabel: { fontSize: 15, fontWeight: '600', color: theme.ink900 },
   stopAddr: { fontSize: 13, color: theme.ink500 },
   urgent: { fontSize: 11, color: theme.danger, fontWeight: '700' },
+  planHint: { fontSize: 12, color: theme.ink500, marginBottom: 10, lineHeight: 18 },
+  planRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: theme.ink100 },
+  planRowNext: { backgroundColor: theme.brand50, marginHorizontal: -12, paddingHorizontal: 12, borderRadius: 10 },
+  planSeq: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: theme.ink100,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  planSeqNext: { backgroundColor: theme.brand },
+  planSeqText: { fontSize: 12, fontWeight: '800', color: theme.ink700 },
+  nextBadge: { fontSize: 10, fontWeight: '800', color: theme.brand, textTransform: 'uppercase' },
+  posNext: { backgroundColor: theme.brand },
   hint: { fontSize: 12, color: theme.ink400, marginTop: 8, textAlign: 'center' },
   // modal
   backdrop: { flex: 1, backgroundColor: 'rgba(15,23,42,0.45)', justifyContent: 'flex-end' },

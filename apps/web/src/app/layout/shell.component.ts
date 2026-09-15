@@ -1,8 +1,9 @@
-import { Component, HostListener, OnInit, computed, effect, inject, signal } from '@angular/core';
+import { Component, HostListener, OnDestroy, OnInit, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { ApiService } from '../core/api.service';
 import { AuthService } from '../core/auth.service';
+import { NotificationService } from '../core/notification.service';
 import { Enterprise, UserRole } from '../core/models';
 import { IconComponent } from '../shared/icon.component';
 
@@ -41,10 +42,11 @@ const ROLE_LABEL: Record<string, string> = {
   templateUrl: './shell.component.html',
   styleUrl: './shell.component.scss',
 })
-export class ShellComponent implements OnInit {
+export class ShellComponent implements OnInit, OnDestroy {
   readonly auth = inject(AuthService);
   private router = inject(Router);
   private api = inject(ApiService);
+  readonly notifications = inject(NotificationService);
 
   /** Rail colapsado (solo iconos). */
   collapsed = signal(localStorage.getItem(COLLAPSED_KEY) === '1');
@@ -124,6 +126,7 @@ export class ShellComponent implements OnInit {
   ngOnInit() {
     this.api.today().subscribe((t) => this.today.set(t.day));
     this.refreshBadges();
+    void this.notifications.connect();
     if (this.auth.isSuper()) {
       this.api.enterprises().subscribe((list) => {
         this.enterprises.set(list);
@@ -194,6 +197,31 @@ export class ShellComponent implements OnInit {
     void this.router.navigateByUrl('/app', { skipLocationChange: true }).then(() => this.router.navigateByUrl(url));
   }
 
+  ngOnDestroy() {
+    this.notifications.disconnect();
+  }
+
+  toggleNotifications() {
+    this.notifications.togglePanel();
+    if (this.notifications.open()) {
+      this.notifications.markAllRead();
+    }
+  }
+
+  formatNotifTime(iso: string): string {
+    try {
+      return new Date(iso).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+    } catch {
+      return '';
+    }
+  }
+
+  openNotification(href: string | undefined, id: string) {
+    this.notifications.markRead(id);
+    this.notifications.closePanel();
+    if (href) void this.router.navigateByUrl(href);
+  }
+
   formatDay(day: string): string {
     if (!day) return '';
     const [y, m, d] = day.split('-').map(Number);
@@ -209,6 +237,7 @@ export class ShellComponent implements OnInit {
   onEsc() {
     this.userMenu.set(false);
     this.mobileOpen.set(false);
+    this.notifications.closePanel();
   }
 
   private loadGroups(): Record<string, boolean> {

@@ -74,6 +74,7 @@ export interface RouteEvent {
   status: string;
   deliverStatus: string;
   priority: string;
+  eta?: string | null;
   comment?: string;
   stop: Stop;
 }
@@ -275,5 +276,11 @@ export const api = {
   },
   markMessagesRead(routeId: string) {
     return request<{ ok: boolean }>(`/routes/${routeId}/messages/read`, { method: 'POST' });
+  },
+  reorderStops(routeId: string, eventIds: string[]) {
+    return request<RouteDetail>(`/routes/${routeId}/reorder`, {
+      method: 'PATCH',
+      body: JSON.stringify({ eventIds }),
+    });
   },
 };

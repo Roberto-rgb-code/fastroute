@@ -192,14 +192,14 @@ export class RoutesController {
   }
 
   @Patch(':id/reorder')
-  @Roles(...DISPATCH)
+  @Roles(...DISPATCH, UserRole.DRIVER)
   reorder(
     @CurrentUser() user: User,
     @Param('id') id: string,
     @Body('eventIds') eventIds: string[],
     @Query('enterpriseId') eid?: string,
   ) {
-    return this.service.reorderStops(resolveEnterpriseId(user, eid), id, eventIds);
+    return this.service.reorderStops(resolveEnterpriseId(user, eid), id, eventIds, user);
   }
 
   @Patch(':id/events/:eventId')
