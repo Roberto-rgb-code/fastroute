@@ -38,6 +38,8 @@ type Tab = 'info' | 'stops' | 'plan' | 'checklist' | 'expenses' | 'incidents' | 
 type Filter = 'ALL' | 'OPEN' | 'PENDING' | 'ENROUTE' | 'DONE' | 'APPROVALS';
 
 const PANELS_KEY = 'fastroute_routes_panels';
+/** Una sola vez: estados viejos guardaron map:false por defecto y ocultaban el mapa. */
+const PANELS_MAP_MIGRATION = 'fastroute_routes_panels_map_v1';
 
 @Component({
   selector: 'app-routes-workspace',
@@ -113,9 +115,10 @@ export class RoutesWorkspaceComponent implements OnInit {
     const color = (status?: string) => (status === 'COMPLETED' ? '#059669' : status === 'ISSUE' ? '#dc2626' : '#4f46e5');
     const d = this.detail();
     if (d) {
-      const ordered =
-        this.planOrderOverride() ??
-        [...d.events].sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+      const usePlanPreview = this.tab() === 'plan' && this.planOrderOverride();
+      const ordered = usePlanPreview
+        ? this.planOrderOverride()!
+        : [...d.events].sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
       return ordered
         .filter((e) => e.stop)
         .map((e, i) => ({
@@ -153,9 +156,9 @@ export class RoutesWorkspaceComponent implements OnInit {
   ];
 
   tabs: { key: Tab; label: string; icon: string }[] = [
-    { key: 'plan', label: 'Planificador', icon: 'navigation' },
     { key: 'info', label: 'Info', icon: 'info' },
     { key: 'stops', label: 'Paradas', icon: 'pin' },
+    { key: 'plan', label: 'Planificador', icon: 'navigation' },
     { key: 'checklist', label: 'Checklist', icon: 'checklist' },
     { key: 'expenses', label: 'Gastos', icon: 'money' },
     { key: 'incidents', label: 'Incidencias', icon: 'alert' },
@@ -739,9 +742,18 @@ export class RoutesWorkspaceComponent implements OnInit {
   private loadPanels(): { list: boolean; map: boolean; mapExpanded: boolean } {
     try {
       const v = JSON.parse(localStorage.getItem(PANELS_KEY) ?? '{}');
-      return { list: v.list ?? true, map: v.map ?? false, mapExpanded: v.mapExpanded ?? false };
+      let map = v.map ?? true;
+      if (!localStorage.getItem(PANELS_MAP_MIGRATION) && v.map === false) {
+        map = true;
+        localStorage.setItem(PANELS_MAP_MIGRATION, '1');
+        localStorage.setItem(
+          PANELS_KEY,
+          JSON.stringify({ ...v, list: v.list ?? true, map: true, mapExpanded: v.mapExpanded ?? false }),
+        );
+      }
+      return { list: v.list ?? true, map, mapExpanded: v.mapExpanded ?? false };
     } catch {
-      return { list: true, map: false, mapExpanded: false };
+      return { list: true, map: true, mapExpanded: false };
     }
   }
 

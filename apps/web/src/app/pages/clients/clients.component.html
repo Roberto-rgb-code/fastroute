@@ -1,4 +1,5 @@
 <app-page-header title="Clientes" subtitle="Contratos y checklist por cliente">
+  <app-entity-view-toggle storageKey="clients" [(mode)]="viewMode" />
   <button class="btn btn-primary" (click)="showForm.set(!showForm())">
     <app-icon name="plus" [size]="18" /> Nuevo cliente
   </button>
@@ -13,25 +14,64 @@
   </div>
 }
 
-<div class="cards-grid">
-  @for (c of items(); track c.id) {
-    <div class="card entity-card">
-      <div class="entity-top">
-        <div class="avatar"><app-icon name="client" [size]="22" /></div>
-        <div class="entity-info">
-          <strong>{{ c.name }}</strong>
-          <span class="muted">{{ c.contactName || 'Sin contacto' }}</span>
+@if (viewMode() === 'cards') {
+  <div class="cards-grid">
+    @for (c of items(); track c.id) {
+      <div class="card entity-card">
+        <div class="entity-top">
+          <div class="avatar"><app-icon name="client" [size]="22" /></div>
+          <div class="entity-info">
+            <strong>{{ c.name }}</strong>
+            <span class="muted">{{ c.contactName || 'Sin contacto' }}</span>
+          </div>
+          <button class="icon-del" (click)="remove(c)"><app-icon name="trash" [size]="16" /></button>
         </div>
-        <button class="icon-del" (click)="remove(c)"><app-icon name="trash" [size]="16" /></button>
+        <div class="entity-meta">
+          <span class="muted"><app-icon name="pin" [size]="14" /> {{ c._count?.stops || 0 }} paradas</span>
+          <span class="muted"><app-icon name="checklist" [size]="14" /> {{ c._count?.checklistItems || 0 }} checklist</span>
+        </div>
+        <div class="entity-foot">
+          <span class="muted">Entrega: {{ c.deliverMinutes }} min</span>
+          <span class="muted">{{ c.contactPhone || '' }}</span>
+        </div>
       </div>
-      <div class="entity-meta">
-        <span class="muted"><app-icon name="pin" [size]="14" /> {{ c._count?.stops || 0 }} paradas</span>
-        <span class="muted"><app-icon name="check" [size]="14" /> {{ c._count?.checklistItems || 0 }} checklist</span>
-      </div>
-      <div class="entity-foot">
-        <span class="muted">Entrega: {{ c.deliverMinutes }} min</span>
-        <span class="muted">{{ c.contactPhone || '' }}</span>
-      </div>
-    </div>
-  }
-</div>
+    }
+  </div>
+} @else {
+  <div class="card entity-list-wrap">
+    <table class="table entity-list">
+      <thead>
+        <tr>
+          <th>Cliente</th>
+          <th>Paradas</th>
+          <th>Checklist</th>
+          <th>Entrega</th>
+          <th>Teléfono</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (c of items(); track c.id) {
+          <tr>
+            <td>
+              <div class="row-main">
+                <span class="avatar-sm"><app-icon name="client" [size]="18" /></span>
+                <div class="name-cell">
+                  <strong>{{ c.name }}</strong>
+                  <span class="muted">{{ c.contactName || 'Sin contacto' }}</span>
+                </div>
+              </div>
+            </td>
+            <td class="muted">{{ c._count?.stops || 0 }}</td>
+            <td class="muted">{{ c._count?.checklistItems || 0 }}</td>
+            <td class="muted">{{ c.deliverMinutes }} min</td>
+            <td class="muted">{{ c.contactPhone || '—' }}</td>
+            <td class="actions">
+              <button class="icon-del" (click)="remove(c)"><app-icon name="trash" [size]="16" /></button>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}

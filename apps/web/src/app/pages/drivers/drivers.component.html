@@ -1,4 +1,5 @@
 <app-page-header title="Operadores" subtitle="Conductores de tu flota · los estados en ruta los gobierna el viaje">
+  <app-entity-view-toggle storageKey="drivers" [(mode)]="viewMode" />
   <button class="btn btn-primary" (click)="showForm.set(!showForm())">
     <app-icon name="plus" [size]="18" /> Nuevo operador
   </button>
@@ -14,33 +15,83 @@
   </div>
 }
 
-<div class="cards-grid">
-  @for (d of items(); track d.id) {
-    <div class="card entity-card">
-      <div class="entity-top">
-        <div class="avatar">{{ d.name.charAt(0) }}</div>
-        <div class="entity-info">
-          <strong>{{ d.name }}</strong>
-          <span class="muted">{{ d.phone || 'Sin teléfono' }}</span>
+@if (viewMode() === 'cards') {
+  <div class="cards-grid">
+    @for (d of items(); track d.id) {
+      <div class="card entity-card">
+        <div class="entity-top">
+          <div class="avatar">{{ d.name.charAt(0) }}</div>
+          <div class="entity-info">
+            <strong>{{ d.name }}</strong>
+            <span class="muted">{{ d.phone || 'Sin teléfono' }}</span>
+          </div>
+          <button class="icon-del" (click)="remove(d)"><app-icon name="trash" [size]="16" /></button>
         </div>
-        <button class="icon-del" (click)="remove(d)"><app-icon name="trash" [size]="16" /></button>
+        <div class="entity-meta">
+          <span class="muted">Licencia: {{ d.licenseId || '—' }} @if (docsExpired(d)) { <span class="badge badge-danger">vencida</span> }</span>
+          <span class="muted">{{ d._count?.routes || 0 }} rutas</span>
+        </div>
+        <div class="entity-foot">
+          <span [class]="'badge badge-' + DRIVER_BADGE[d.status]">{{ DRIVER_LABEL[d.status] }}</span>
+          @if (routeDriven(d.status)) {
+            <span class="muted tiny" title="Estado derivado de la ruta activa (RN-DRV-06)">en viaje</span>
+          } @else {
+            <select class="select select-sm" [ngModel]="d.status" (ngModelChange)="setStatus(d, $event)">
+              @for (s of statuses; track s) {
+                <option [value]="s">{{ DRIVER_LABEL[s] }}</option>
+              }
+            </select>
+          }
+        </div>
       </div>
-      <div class="entity-meta">
-        <span class="muted">Licencia: {{ d.licenseId || '—' }} @if (docsExpired(d)) { <span class="badge badge-danger">vencida</span> }</span>
-        <span class="muted">{{ d._count?.routes || 0 }} rutas</span>
-      </div>
-      <div class="entity-foot">
-        <span [class]="'badge badge-' + DRIVER_BADGE[d.status]">{{ DRIVER_LABEL[d.status] }}</span>
-        @if (routeDriven(d.status)) {
-          <span class="muted tiny" title="Estado derivado de la ruta activa (RN-DRV-06)">en viaje</span>
-        } @else {
-          <select class="select select-sm" [ngModel]="d.status" (ngModelChange)="setStatus(d, $event)">
-            @for (s of statuses; track s) {
-              <option [value]="s">{{ DRIVER_LABEL[s] }}</option>
-            }
-          </select>
+    }
+  </div>
+} @else {
+  <div class="card entity-list-wrap">
+    <table class="table entity-list">
+      <thead>
+        <tr>
+          <th>Operador</th>
+          <th>Licencia</th>
+          <th>Rutas</th>
+          <th>Estado</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (d of items(); track d.id) {
+          <tr>
+            <td>
+              <div class="row-main">
+                <span class="avatar-sm">{{ d.name.charAt(0) }}</span>
+                <div class="name-cell">
+                  <strong>{{ d.name }}</strong>
+                  <span class="muted">{{ d.phone || 'Sin teléfono' }}</span>
+                </div>
+              </div>
+            </td>
+            <td class="muted">
+              {{ d.licenseId || '—' }}
+              @if (docsExpired(d)) { <span class="badge badge-danger">vencida</span> }
+            </td>
+            <td class="muted">{{ d._count?.routes || 0 }}</td>
+            <td>
+              @if (routeDriven(d.status)) {
+                <span [class]="'badge badge-' + DRIVER_BADGE[d.status]">{{ DRIVER_LABEL[d.status] }}</span>
+              } @else {
+                <select class="select select-sm" [ngModel]="d.status" (ngModelChange)="setStatus(d, $event)">
+                  @for (s of statuses; track s) {
+                    <option [value]="s">{{ DRIVER_LABEL[s] }}</option>
+                  }
+                </select>
+              }
+            </td>
+            <td class="actions">
+              <button class="icon-del" (click)="remove(d)"><app-icon name="trash" [size]="16" /></button>
+            </td>
+          </tr>
         }
-      </div>
-    </div>
-  }
-</div>
+      </tbody>
+    </table>
+  </div>
+}

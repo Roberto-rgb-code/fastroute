@@ -1,5 +1,18 @@
 @use '../../shared/admin';
 
+.stop-card.archived {
+  opacity: 0.72;
+}
+.stop-card-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+.stop-card-actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
 .geo-row {
   display: flex;
   flex-direction: column;

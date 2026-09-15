@@ -1,4 +1,5 @@
 <app-page-header title="Paradas" subtitle="Catálogo de direcciones y puntos de visita">
+  <app-entity-view-toggle storageKey="stops" [(mode)]="viewMode" />
   <button class="btn btn-ghost" (click)="toggleArchived()">
     <app-icon name="archive" [size]="16" /> {{ showArchived() ? 'Ocultar archivadas' : 'Ver archivadas' }}
   </button>
@@ -18,10 +19,45 @@
   </div>
 </div>
 
+@if (!visible().length) {
+  <div class="card"><p class="muted empty">No hay paradas en este filtro.</p></div>
+} @else if (viewMode() === 'cards') {
+  <div class="cards-grid">
+    @for (s of visible(); track s.id) {
+      <div class="card entity-card stop-card" [class.archived]="s.isArchived">
+        <div class="entity-top">
+          <div class="avatar"><app-icon name="pin" [size]="20" /></div>
+          <div class="entity-info">
+            <strong>{{ s.label }}</strong>
+            <span class="muted">{{ s.address }}</span>
+          </div>
+        </div>
+        <div class="stop-card-badges">
+          <span class="badge badge-muted">{{ STOP_TYPE_LABEL[s.type] }}</span>
+          @if (s.isMain) { <span class="badge badge-info">Principal</span> }
+          @if (s.isArchived) { <span class="badge badge-muted">Archivada</span> }
+          @if (s.tag) { <span class="tag" [style.background]="s.tagColor || '#6366f1'">{{ s.tag }}</span> }
+        </div>
+        <div class="entity-meta">
+          <span class="muted">{{ s.client?.name || 'Sin cliente' }}</span>
+          <span class="muted">{{ s._count?.events || 0 }} visitas</span>
+        </div>
+        <div class="entity-foot">
+          <span class="muted tiny">{{ s.schedule || 'Sin horario' }}</span>
+          <div class="stop-card-actions">
+            <button class="icon-btn" (click)="edit(s)" title="Editar"><app-icon name="edit" [size]="16" /></button>
+            @if (s.isArchived) {
+              <button class="icon-btn" (click)="restore(s)" title="Restaurar"><app-icon name="check" [size]="16" /></button>
+            } @else {
+              <button class="icon-btn danger" (click)="archive(s)" title="Archivar"><app-icon name="archive" [size]="16" /></button>
+            }
+          </div>
+        </div>
+      </div>
+    }
+  </div>
+} @else {
 <div class="card">
-  @if (!visible().length) {
-    <p class="muted empty">No hay paradas en este filtro.</p>
-  } @else {
     <table class="table">
       <thead>
         <tr><th>Parada</th><th>Tipo</th><th>Cliente</th><th>Tag</th><th>Tel. aviso</th><th>Horario</th><th>Uso</th><th></th></tr>
@@ -54,8 +90,8 @@
         }
       </tbody>
     </table>
-  }
 </div>
+}
 
 <!-- Drawer lateral de edición -->
 @if (editing(); as e) {

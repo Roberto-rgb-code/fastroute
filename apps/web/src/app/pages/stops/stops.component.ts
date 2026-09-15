@@ -5,6 +5,8 @@ import { Client, EnterpriseSettings, Stop, StopType } from '../../core/models';
 import { STOP_TYPE_LABEL } from '../../core/status';
 import { IconComponent } from '../../shared/icon.component';
 import { PageHeaderComponent } from '../../shared/page-header.component';
+import { EntityViewToggleComponent } from '../../shared/entity-view-toggle.component';
+import { loadEntityView } from '../../shared/entity-view';
 
 const EMPTY: Partial<Stop> = {
   label: '',
@@ -26,9 +28,9 @@ const EMPTY: Partial<Stop> = {
 @Component({
   selector: 'app-stops',
   standalone: true,
-  imports: [FormsModule, PageHeaderComponent, IconComponent],
+  imports: [FormsModule, PageHeaderComponent, IconComponent, EntityViewToggleComponent],
   templateUrl: './stops.component.html',
-  styleUrl: './stops.component.scss',
+  styleUrls: ['./stops.component.scss', '../drivers/entities.scss'],
 })
 export class StopsComponent implements OnInit {
   private api = inject(ApiService);
@@ -43,6 +45,7 @@ export class StopsComponent implements OnInit {
   error = signal<string | null>(null);
   geocoding = signal(false);
   geocodeHint = signal<string | null>(null);
+  viewMode = signal(loadEntityView('stops', 'list'));
 
   readonly STOP_TYPE_LABEL = STOP_TYPE_LABEL;
   readonly types: StopType[] = ['VISIT', 'CEDIS', 'MAIN', 'GAS', 'PARKING', 'WORKSHOP'];

@@ -48,6 +48,8 @@ const ICONIFY: Record<string, string> = {
   calendar: 'solar:calendar-bold-duotone',
   edit: 'solar:pen-bold-duotone',
   archive: 'solar:archive-bold-duotone',
+  'layout-grid': 'solar:widget-4-bold-duotone',
+  'layout-list': 'solar:list-bold-duotone',
   info: 'solar:info-circle-bold-duotone',
   more: 'solar:menu-dots-bold',
   gas: 'solar:gas-station-bold-duotone',

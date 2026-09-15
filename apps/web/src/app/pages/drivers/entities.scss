@@ -75,6 +75,46 @@
   padding: 0.35rem 0.5rem;
   font-size: 0.8rem;
 }
+.entity-list-wrap {
+  overflow-x: auto;
+}
+.entity-list {
+  width: 100%;
+  min-width: 640px;
+  th:last-child,
+  td.actions {
+    width: 1%;
+    white-space: nowrap;
+    text-align: right;
+  }
+  .name-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    strong {
+      font-size: 0.9rem;
+    }
+    span {
+      font-size: 0.78rem;
+    }
+  }
+  .avatar-sm {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    background: var(--brand-50);
+    color: var(--brand-600);
+    display: grid;
+    place-items: center;
+    font-weight: 700;
+    font-size: 0.95rem;
+  }
+  .row-main {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+  }
+}
 .tiny {
   font-size: 0.72rem;
   font-style: italic;

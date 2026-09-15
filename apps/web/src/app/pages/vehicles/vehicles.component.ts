@@ -4,12 +4,14 @@ import { ApiService } from '../../core/api.service';
 import { Vehicle, VehicleStatus } from '../../core/models';
 import { PageHeaderComponent } from '../../shared/page-header.component';
 import { IconComponent } from '../../shared/icon.component';
+import { EntityViewToggleComponent } from '../../shared/entity-view-toggle.component';
+import { loadEntityView } from '../../shared/entity-view';
 import { VEHICLE_BADGE, VEHICLE_LABEL } from '../../core/status';
 
 @Component({
   selector: 'app-vehicles',
   standalone: true,
-  imports: [FormsModule, PageHeaderComponent, IconComponent],
+  imports: [FormsModule, PageHeaderComponent, IconComponent, EntityViewToggleComponent],
   templateUrl: './vehicles.component.html',
   styleUrl: '../drivers/entities.scss',
 })
@@ -17,6 +19,7 @@ export class VehiclesComponent implements OnInit {
   private api = inject(ApiService);
   items = signal<Vehicle[]>([]);
   showForm = signal(false);
+  viewMode = signal(loadEntityView('vehicles'));
   plate = '';
   name = '';
   capacity?: number;
