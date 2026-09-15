@@ -1,5 +1,5 @@
 import { Injectable, signal } from '@angular/core';
-import { mapboxgl } from './mapbox-init';
+import { mapboxgl, waitForMapboxGl } from './mapbox-init';
 import type { ClientConfig } from './models';
 
 export type MapboxMap = mapboxgl.Map;
@@ -33,6 +33,7 @@ export class MapService {
     if (this.loaded && this.token()) return this.token();
 
     try {
+      await waitForMapboxGl();
       const cfg = await this.fetchClientConfig();
       const t = cfg.mapbox?.token?.trim() || null;
       this.token.set(t);
@@ -42,7 +43,7 @@ export class MapService {
       if (t) mapboxgl.accessToken = t;
       this.loaded = true;
     } catch (e) {
-      console.warn('[MapService] No se pudo cargar /config/client', e);
+      console.warn('[MapService] Mapbox config', e);
       this.token.set(null);
     }
 
